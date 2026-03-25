@@ -1,5 +1,6 @@
 import math
 import sys
+from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,10 @@ from treefi.models import NormalizedNode, NormalizedTree
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "xgbfir"))
 import xgboost as xgb  # noqa: E402
 
-import xgbfir  # type: ignore  # noqa: E402
+if find_spec("xgbfir") is not None:
+    import xgbfir  # type: ignore  # noqa: E402
+else:  # pragma: no cover - depends on local reference checkout
+    xgbfir = None
 
 
 def make_metric_tree() -> NormalizedTree:
@@ -202,6 +206,9 @@ def test_summarize_interactions_uses_deterministic_tie_breaking() -> None:
 
 
 def test_xgboost_metrics_remain_directionally_consistent_with_xgbfir() -> None:
+    if xgbfir is None:
+        pytest.skip("xgbfir reference package is not available in this checkout")
+
     dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
