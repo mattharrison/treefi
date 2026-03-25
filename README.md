@@ -359,181 +359,21 @@ Practical guidance:
 
 ## Metrics
 
-The output dataframes include several ranking metrics. No single metric is always best. In practice, you usually want to sort by more than one and compare.
-
-### `gain`
-
-What it means:
-
-- how much split improvement is associated with the feature or interaction
-
-Why use it:
-
-- good first-pass ranking metric
-- highlights strong structural contributors
-
-Pros:
-
-- intuitive
-- often surfaces the most important model logic quickly
-
-Cons:
-
-- backend semantics differ
-- can overweight a small number of very strong splits
-
-### `fscore`
-
-What it means:
-
-- raw occurrence count
-
-Why use it:
-
-- shows how often a feature or interaction appears
-
-Pros:
-
-- simple
-- stable and easy to explain
-
-Cons:
-
-- frequency alone does not tell you whether a split mattered much
-
-### `weighted_fscore`
-
-What it means:
-
-- path probability, following `xgbfir` semantics
-
-Why use it:
-
-- discounts rare paths
-- helps separate common structure from edge-case structure
-
-Pros:
-
-- more informative than raw count when deep or low-mass paths exist
-
-Cons:
-
-- depends on cover-like backend statistics
-- not always directly comparable across all libraries
-
-### `expected_gain`
-
-What it means:
-
-- `gain * weighted_fscore`
-
-Why use it:
-
-- balances strength and prevalence
-- often a better ranking metric than pure `gain`
-
-Pros:
-
-- reduces the influence of rare but extreme paths
-- useful for prioritizing interactions that both matter and occur
-
-Cons:
-
-- inherits the limitations of both `gain` and `weighted_fscore`
-
-### `cover`
-
-What it means:
-
-- node mass: how much training weight reaches a split or path
-
-Why use it:
-
-- tells you whether a feature/interaction is common vs niche
-
-Pros:
-
-- helps contextualize gain
-- useful for debugging whether a pattern is broadly used
-
-Cons:
-
-- exact semantics vary by backend
-- should not be treated as perfectly normalized across libraries
-
-### `average_gain`
-
-What it means:
-
-- `gain / fscore`
-
-Why use it:
-
-- separates repeated moderate effects from rare strong effects
-
-Pros:
-
-- useful secondary ranking metric
-
-Cons:
-
-- can overrate rare events
-
-### `tree_frequency` and `path_frequency`
-
-What they mean:
-
-- `tree_frequency`: how many trees contain the interaction
-- `path_frequency`: how many distinct paths contain it
-
-Why use them:
-
-- they show whether a pattern is repeated broadly or only in a few places
-
-Pros:
-
-- very interpretable
-- useful alongside gain
-
-Cons:
-
-- structural frequency does not always mean predictive importance
-
-### `first_position_mean`, `min_depth`, `max_depth`
-
-What they mean:
-
-- where the feature or interaction tends to appear in the tree
-
-Why use them:
-
-- early splits often indicate more global model structure
-
-Pros:
-
-- useful for understanding how “high up” a feature acts
-
-Cons:
-
-- depth is informative, but not a direct importance score
-
-### `leaf_effect_mean` and `leaf_effect_var`
-
-What they mean:
-
-- summary of downstream leaf values for paths containing the interaction
-
-Why use them:
-
-- useful when you want to understand downstream effect direction and variability
-
-Pros:
-
-- helpful for exploring what happens after an interaction appears
-
-Cons:
-
-- interpretation depends on model type and backend leaf semantics
+The output dataframes include several ranking metrics. No single metric is always best, so in practice you usually want to compare more than one.
+
+| Metric | What it means | Good for | Pros | Cons |
+| --- | --- | --- | --- | --- |
+| `gain` | Split improvement associated with the feature or interaction | First-pass ranking | Intuitive and often surfaces important model logic quickly | Backend semantics differ and it can overweight a few extreme splits |
+| `fscore` | Raw occurrence count | Seeing how often a feature or interaction appears | Simple, stable, easy to explain | Frequency alone does not say whether the split mattered much |
+| `weighted_fscore` | Path probability, following `xgbfir` semantics | Discounting rare paths and highlighting common structure | More informative than raw count when deep or low-mass paths exist | Depends on cover-like backend statistics and is not perfectly comparable across all libraries |
+| `expected_gain` | `gain * weighted_fscore` | Balancing strength and prevalence | Good for prioritizing interactions that are both strong and common | Inherits the limitations of both `gain` and `weighted_fscore` |
+| `cover` | Node mass: how much training weight reaches a split or path | Seeing whether a pattern is broad or niche | Useful context for gain and for debugging model reach | Exact semantics vary by backend |
+| `average_gain` | `gain / fscore` | Separating repeated moderate effects from rare strong effects | Good secondary ranking metric | Can overrate rare events |
+| `tree_frequency` | How many trees contain the interaction | Breadth across the ensemble | Interpretable and useful next to gain | Structural frequency is not the same as predictive importance |
+| `path_frequency` | How many distinct paths contain the interaction | Structural repetition within trees | Interpretable and useful next to gain | Structural frequency is not the same as predictive importance |
+| `first_position_mean` | Where the feature or interaction tends to start in a path | Understanding whether it acts early or late | Useful for understanding how high up a feature acts | Not a direct importance score |
+| `min_depth`, `max_depth` | Depth range where the feature or interaction appears | Understanding spread and path position | Helps show whether behavior is shallow or deep | Depth is informative, but not an importance metric by itself |
+| `leaf_effect_mean`, `leaf_effect_var` | Summary of downstream leaf values for paths containing the interaction | Understanding downstream effect direction and variability | Helpful for exploring what happens after an interaction appears | Interpretation depends on model type and backend leaf semantics |
 
 ## How To Use The Metrics Together
 
