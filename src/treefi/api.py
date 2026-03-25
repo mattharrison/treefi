@@ -80,7 +80,79 @@ def cross_validated_interactions(
     top_k: int | None = None,
     min_fscore: int | None = None,
 ) -> CrossValidatedResult:
-    """Return fold-level and aggregated interaction summaries across CV splits."""
+    """Return fold-level and aggregated interaction summaries across CV splits.
+
+    Parameters
+    ----------
+    model:
+        An unfitted sklearn-compatible estimator or pipeline whose final step
+        is a supported tree model. A fresh clone is fit inside each fold.
+    X:
+        Tabular feature data. ``pandas.DataFrame`` is preferred so feature
+        names are preserved automatically, but array-like input is accepted.
+    y:
+        Target values aligned with ``X``.
+    feature_names:
+        Optional explicit feature names used when the fitted estimator does not
+        retain them or when you want to override the model's own names.
+    cv:
+        Optional sklearn splitter or iterable of ``(train_index, test_index)``
+        pairs. When omitted, treefi defaults to ``KFold`` for regression and
+        ``StratifiedKFold`` for classification.
+    groups:
+        Optional group labels passed through to the supplied splitter when it
+        accepts grouped splits such as ``GroupKFold``.
+    n_splits:
+        Number of folds used when ``cv`` is not provided.
+    max_interaction_depth:
+        Maximum interaction depth relative to the starting split. ``0`` gives
+        feature-only output, ``1`` gives pairwise interactions, and so on.
+    max_deepening:
+        Maximum path depth at which an interaction may start. ``-1`` disables
+        the constraint.
+    interaction_mode:
+        ``"unordered"`` collapses interactions to canonical feature sets.
+        ``"ordered"`` preserves path order and repeated-feature structure.
+    sort_by:
+        Optional metric used to sort the per-fold interaction dataframes before
+        they are aggregated.
+    ascending:
+        Sort order applied when ``sort_by`` is provided.
+    top_k:
+        Optional limit applied to each fold before aggregation. This is also
+        what powers selection-rate style stability metrics.
+    min_fscore:
+        Optional minimum occurrence threshold applied within each fold.
+
+    Returns
+    -------
+    CrossValidatedResult
+        A grouped result object with per-fold interaction rows in
+        ``interaction_folds`` and aggregated stability summaries in
+        ``interaction_summary``. The ``folds`` and ``summary`` aliases point to
+        the same data for convenience.
+
+    Notes
+    -----
+    The aggregated summary is intended to answer "is this interaction stable?"
+    rather than "is this interaction merely large in one model?" Columns such
+    as ``fold_presence_rate``, ``selection_rate_top_k``, ``gain_cv``, and
+    ``overfit_suspect_flag`` are specifically aimed at this question.
+
+    For temporal or leakage-sensitive problems, pass an explicit splitter via
+    ``cv=`` instead of relying on the default sklearn splitters.
+
+    Examples
+    --------
+    >>> from sklearn.datasets import load_diabetes
+    >>> from sklearn.ensemble import RandomForestRegressor
+    >>> data = load_diabetes(as_frame=True)
+    >>> X = data.frame[data.feature_names]
+    >>> y = data.frame[data.target.name]
+    >>> model = RandomForestRegressor(n_estimators=20, max_depth=4, random_state=0)
+    >>> result = cross_validated_interactions(model, X, y, n_splits=3, top_k=10)
+    >>> result.interaction_summary[["interaction", "mean_gain", "fold_presence_rate"]].head()
+    """
     _validate_interaction_mode(interaction_mode)
     _validate_top_k(top_k)
 
@@ -135,7 +207,62 @@ def cross_validated_importance(
     ascending: bool = False,
     top_k: int | None = None,
 ) -> CrossValidatedResult:
-    """Return fold-level and aggregated feature-importance summaries across CV splits."""
+    """Return fold-level and aggregated feature-importance summaries across CV splits.
+
+    Parameters
+    ----------
+    model:
+        An unfitted sklearn-compatible estimator or pipeline whose final step
+        is a supported tree model. A fresh clone is fit inside each fold.
+    X:
+        Tabular feature data. ``pandas.DataFrame`` is preferred so feature
+        names are preserved automatically, but array-like input is accepted.
+    y:
+        Target values aligned with ``X``.
+    feature_names:
+        Optional explicit feature names used when the fitted estimator does not
+        preserve them or when you want to override the model's own names.
+    cv:
+        Optional sklearn splitter or iterable of ``(train_index, test_index)``
+        pairs. When omitted, treefi defaults to ``KFold`` for regression and
+        ``StratifiedKFold`` for classification.
+    groups:
+        Optional group labels passed through to the supplied splitter when it
+        accepts grouped splits.
+    n_splits:
+        Number of folds used when ``cv`` is not provided.
+    sort_by:
+        Optional metric used to sort each fold-level importance dataframe.
+    ascending:
+        Sort order applied when ``sort_by`` is provided.
+    top_k:
+        Optional limit applied to each fold before aggregation.
+
+    Returns
+    -------
+    CrossValidatedResult
+        A grouped result object with per-fold feature rows in
+        ``importance_folds`` and aggregated stability summaries in
+        ``importance_summary``. The ``folds`` and ``summary`` aliases point to
+        the same data for convenience.
+
+    Notes
+    -----
+    This is the CV companion to :func:`feature_importance`. Use it when you
+    want to know whether a feature is repeatedly important across folds instead
+    of only ranking highly in one fitted model.
+
+    Examples
+    --------
+    >>> from sklearn.datasets import load_breast_cancer
+    >>> from sklearn.ensemble import RandomForestClassifier
+    >>> data = load_breast_cancer(as_frame=True)
+    >>> X = data.frame[data.feature_names]
+    >>> y = data.frame[data.target.name]
+    >>> model = RandomForestClassifier(n_estimators=20, max_depth=4, random_state=0)
+    >>> result = cross_validated_importance(model, X, y, n_splits=3, top_k=10)
+    >>> result.importance_summary[["feature", "mean_gain", "fold_presence_rate"]].head()
+    """
     _validate_top_k(top_k)
 
     splitter, task = _resolve_cv_splitter(model, y, cv=cv, n_splits=n_splits)
@@ -213,6 +340,12 @@ def feature_importance(
     -----
     Internally, feature importance is derived from the depth-0 interaction view
     so that feature and interaction outputs stay consistent.
+
+    Examples
+    --------
+    >>> from sklearn.tree import DecisionTreeRegressor
+    >>> model = DecisionTreeRegressor(max_depth=2, random_state=0).fit([[0.0], [1.0], [2.0]], [0.0, 0.0, 1.0])
+    >>> feature_importance(model).head()
     """
     _validate_top_k(top_k)
     analysis_model = _unwrap_model_for_analysis(model)
@@ -316,6 +449,12 @@ def feature_interactions(
     This is the main entry point for library users. The result is intended to
     be notebook-friendly and immediately usable for downstream filtering,
     plotting, ranking, or export.
+
+    Examples
+    --------
+    >>> from sklearn.tree import DecisionTreeRegressor
+    >>> model = DecisionTreeRegressor(max_depth=2, random_state=0).fit([[0.0], [1.0], [2.0]], [0.0, 0.0, 1.0])
+    >>> feature_interactions(model, max_interaction_depth=1, top_k=10).head()
     """
     _validate_interaction_mode(interaction_mode)
     _validate_top_k(top_k)
@@ -377,6 +516,13 @@ def summarize_model(
 
     Passing ``None`` is supported for tests and empty-result plumbing; the
     function returns an empty ``AnalysisResult`` in that case.
+
+    Examples
+    --------
+    >>> from sklearn.ensemble import RandomForestRegressor
+    >>> model = RandomForestRegressor(n_estimators=5, max_depth=2, random_state=0).fit([[0.0], [1.0], [2.0]], [0.0, 0.0, 1.0])
+    >>> result = summarize_model(model, max_interaction_depth=1, top_k=10)
+    >>> result.metadata
     """
     if model is None:
         return AnalysisResult(
