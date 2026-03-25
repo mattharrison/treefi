@@ -1,0 +1,53 @@
+[project]
+name = "treefi"
+version = "0.1.0"
+description = "Dataframe-first feature importance and interaction analysis for tree-based ML models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "catboost>=1.2",
+    "lightgbm>=4.5",
+    "mypy>=1.11",
+    "notebook>=7.5.5",
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "scikit-learn>=1.5",
+    "xgboost>=2.1",
+    "xlsxwriter>=3.2",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["xgbfir"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = false
+strict_optional = true
