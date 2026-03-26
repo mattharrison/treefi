@@ -16,8 +16,11 @@ def test_summarize_model_returns_grouped_empty_frames_for_none_input() -> None:
     assert result.importance.columns.tolist() == empty_importance_frame().columns.tolist()
 
 
-def test_summarize_model_returns_grouped_outputs_for_supported_model() -> None:
-    model = DecisionTreeRegressor(max_depth=1, random_state=0).fit([[0.0], [1.0], [2.0], [3.0]], [0.0, 0.0, 1.0, 1.0])
+def test_summarize_model_returns_grouped_outputs_for_supported_model(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
+    model = DecisionTreeRegressor(max_depth=1, random_state=0).fit(X, y)
 
     result = treefi.summarize_model(model, max_interaction_depth=0)
 

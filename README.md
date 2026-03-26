@@ -26,39 +26,40 @@ uv run pytest
 
 ## Quickstart
 
-```python
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.datasets import load_diabetes
-import treefi
-
-diabetes = load_diabetes(as_frame=True)
-X = diabetes.frame[diabetes.feature_names]
-y = diabetes.frame[diabetes.target.name]
-
-model = RandomForestRegressor(
-    n_estimators=50,
-    max_depth=4,
-    random_state=0,
-).fit(X, y)
-
-interactions = treefi.feature_interactions(
-    model,
-    max_interaction_depth=1,
-    sort_by="gain",
-    top_k=20,
-)
-
-importance = treefi.feature_importance(
-    model,
-    sort_by="gain",
-    top_k=20,
-)
-
-summary = treefi.summarize_model(
-    model,
-    max_interaction_depth=1,
-    top_k=20,
-)
+```pycon
+>>> from sklearn.datasets import load_diabetes
+>>> from sklearn.ensemble import RandomForestRegressor
+>>> import treefi
+>>> diabetes = load_diabetes(as_frame=True)
+>>> X = diabetes.frame[diabetes.feature_names]
+>>> y = diabetes.frame[diabetes.target.name]
+>>> model = RandomForestRegressor(
+...     n_estimators=50,
+...     max_depth=4,
+...     random_state=0,
+... ).fit(X, y)
+>>> interactions = treefi.feature_interactions(
+...     model,
+...     max_interaction_depth=1,
+...     sort_by="gain",
+...     top_k=20,
+... )
+>>> {"interaction", "gain", "expected_gain"}.issubset(interactions.columns)
+True
+>>> importance = treefi.feature_importance(
+...     model,
+...     sort_by="gain",
+...     top_k=20,
+... )
+>>> importance["feature"].is_unique
+True
+>>> summary = treefi.summarize_model(
+...     model,
+...     max_interaction_depth=1,
+...     top_k=20,
+... )
+>>> sorted(summary.metadata)
+['backend', 'model_type']
 ```
 
 Typical workflow:
@@ -78,31 +79,32 @@ Use:
 
 Example:
 
-```python
-cv_result = treefi.cross_validated_interactions(
-    model,
-    X,
-    y,
-    n_splits=5,
-    top_k=10,
-)
-
-fold_rows = cv_result.interaction_folds
-summary = cv_result.interaction_summary
+```pycon
+>>> cv_result = treefi.cross_validated_interactions(
+...     model,
+...     X,
+...     y,
+...     n_splits=5,
+...     top_k=10,
+... )
+>>> {"interaction", "mean_gain", "fold_presence_rate"}.issubset(cv_result.interaction_summary.columns)
+True
+>>> cv_result.metadata["splitter"]
+'KFold'
 ```
 
 For feature importance:
 
-```python
-cv_importance = treefi.cross_validated_importance(
-    model,
-    X,
-    y,
-    n_splits=5,
-    top_k=10,
-)
-
-importance_summary = cv_importance.importance_summary
+```pycon
+>>> cv_importance = treefi.cross_validated_importance(
+...     model,
+...     X,
+...     y,
+...     n_splits=5,
+...     top_k=10,
+... )
+>>> {"feature", "mean_gain", "fold_presence_rate"}.issubset(cv_importance.importance_summary.columns)
+True
 ```
 
 By default:
@@ -112,16 +114,18 @@ By default:
 
 You can override that with your own sklearn splitter:
 
-```python
-from sklearn.model_selection import GroupKFold
-
-cv_result = treefi.cross_validated_interactions(
-    model,
-    X,
-    y,
-    cv=GroupKFold(n_splits=5),
-    groups=groups,
-)
+```pycon
+>>> from sklearn.model_selection import GroupKFold
+>>> groups = (X.index % 5).to_numpy()
+>>> grouped_cv = treefi.cross_validated_interactions(
+...     model,
+...     X,
+...     y,
+...     cv=GroupKFold(n_splits=5),
+...     groups=groups,
+... )
+>>> grouped_cv.metadata["splitter"]
+'GroupKFold'
 ```
 
 ### How To Read CV Stability Output
@@ -169,6 +173,10 @@ Useful when you want:
 - a dataframe replacement for tree-model feature importance summaries
 - a ranked list of influential features
 - an output that can be exported directly to CSV, Parquet, or Excel
+
+For ensembles, repeated per-tree feature occurrences are aggregated into one
+row per feature before ranking. That means `sort_by` and `top_k` operate on the
+final feature-level totals or averages, not on raw per-tree rows.
 
 ### `feature_interactions(...)`
 

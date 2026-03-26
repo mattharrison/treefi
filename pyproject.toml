@@ -1,6 +1,6 @@
 [project]
 name = "treefi"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dataframe-first feature importance and interaction analysis for tree-based ML models"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,8 +27,12 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra"
+addopts = "-ra --doctest-modules"
 testpaths = ["tests"]
+doctest_optionflags = [
+  "ELLIPSIS",
+  "NORMALIZE_WHITESPACE",
+]
 
 [tool.ruff]
 line-length = 100

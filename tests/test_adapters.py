@@ -95,9 +95,10 @@ def test_resolve_feature_names_generates_fallback_names() -> None:
     assert names == ["f0", "f1", "f2"]
 
 
-def test_sklearn_adapter_normalizes_decision_tree_regressor() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0]]
-    y = [0.0, 0.0, 1.0, 1.0]
+def test_sklearn_adapter_normalizes_decision_tree_regressor(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
     model = DecisionTreeRegressor(max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -114,9 +115,10 @@ def test_sklearn_adapter_normalizes_decision_tree_regressor() -> None:
     assert tree.get_node(tree.root.right_child).is_leaf is True
 
 
-def test_sklearn_adapter_normalizes_decision_tree_classifier() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0]]
-    y = [0, 0, 1, 1]
+def test_sklearn_adapter_normalizes_decision_tree_classifier(
+    tiny_classification_data: tuple[list[list[float]], list[int]],
+) -> None:
+    X, y = tiny_classification_data
     model = DecisionTreeClassifier(max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -131,9 +133,10 @@ def test_sklearn_adapter_normalizes_decision_tree_classifier() -> None:
     assert tree.get_node(tree.root.right_child).leaf_value is not None
 
 
-def test_sklearn_adapter_normalizes_random_forest_regressor() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0]]
-    y = [0.0, 0.0, 1.0, 1.0]
+def test_sklearn_adapter_normalizes_random_forest_regressor(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
     model = RandomForestRegressor(n_estimators=2, max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -145,9 +148,10 @@ def test_sklearn_adapter_normalizes_random_forest_regressor() -> None:
     assert ensemble.trees[1].tree_index == 1
 
 
-def test_sklearn_adapter_normalizes_random_forest_classifier() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0]]
-    y = [0, 0, 1, 1]
+def test_sklearn_adapter_normalizes_random_forest_classifier(
+    tiny_classification_data: tuple[list[list[float]], list[int]],
+) -> None:
+    X, y = tiny_classification_data
     model = RandomForestClassifier(n_estimators=2, max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -179,9 +183,10 @@ def test_backend_metric_capability_statuses_remain_explicit() -> None:
     assert catboost_capabilities["cover"].status == "approximate"
 
 
-def test_sklearn_adapter_derives_gain_and_cover_for_decision_tree_regressor() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0]]
-    y = [0.0, 0.0, 1.0, 1.0]
+def test_sklearn_adapter_derives_gain_and_cover_for_decision_tree_regressor(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
     model = DecisionTreeRegressor(max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -191,9 +196,10 @@ def test_sklearn_adapter_derives_gain_and_cover_for_decision_tree_regressor() ->
     assert root.cover == pytest.approx(4.0)
 
 
-def test_sklearn_adapter_derives_gain_and_cover_for_random_forest_trees() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0]]
-    y = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+def test_sklearn_adapter_derives_gain_and_cover_for_random_forest_trees(
+    tiny_regression_data_with_tail: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data_with_tail
     model = RandomForestRegressor(n_estimators=2, max_depth=1, random_state=0).fit(X, y)
 
     ensemble = SklearnAdapter().to_normalized_ensemble(model)
@@ -255,9 +261,12 @@ def test_xgboost_feature_name_resolution_does_not_mutate_source_booster() -> Non
     assert after == ["orig"]
 
 
-def test_catboost_adapter_can_extract_tiny_tree_structure() -> None:
+def test_catboost_adapter_can_extract_tiny_tree_structure(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
     model = CatBoostRegressor(depth=1, learning_rate=1.0, iterations=1, verbose=False)
-    model.fit([[0.0], [1.0], [2.0], [3.0]], [0.0, 0.0, 1.0, 1.0])
+    model.fit(X, y)
 
     ensemble = CatBoostAdapter().to_normalized_ensemble(model)
 
@@ -267,9 +276,12 @@ def test_catboost_adapter_can_extract_tiny_tree_structure() -> None:
     assert ensemble.trees[0].root.feature == "f0"
 
 
-def test_catboost_adapter_derives_cover_from_leaf_weights() -> None:
+def test_catboost_adapter_derives_cover_from_leaf_weights(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
     model = CatBoostRegressor(depth=1, learning_rate=1.0, iterations=1, verbose=False)
-    model.fit([[0.0], [1.0], [2.0], [3.0]], [0.0, 0.0, 1.0, 1.0])
+    model.fit(X, y)
 
     ensemble = CatBoostAdapter().to_normalized_ensemble(model)
 
@@ -284,12 +296,12 @@ def test_catboost_adapter_derives_cover_from_leaf_weights() -> None:
     assert root.cover == pytest.approx(4.0)
 
 
-def test_catboost_adapter_derives_approximate_gain_from_leaf_values_and_weights() -> None:
+def test_catboost_adapter_derives_approximate_gain_from_leaf_values_and_weights(
+    tiny_regression_step_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_step_data
     model = CatBoostRegressor(depth=2, learning_rate=1.0, iterations=1, verbose=False)
-    model.fit(
-        [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0], [6.0], [7.0]],
-        [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0],
-    )
+    model.fit(X, y)
 
     ensemble = CatBoostAdapter().to_normalized_ensemble(model)
 
@@ -311,9 +323,10 @@ def test_catboost_adapter_explicitly_marks_categorical_split_normalization_unsup
     assert CatBoostAdapter().supports_categorical_splits() is False
 
 
-def test_sklearn_adapter_normalizes_hist_gradient_boosting_regressor() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0], [6.0], [7.0]]
-    y = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+def test_sklearn_adapter_normalizes_hist_gradient_boosting_regressor(
+    tiny_regression_step_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_step_data
     model = HistGradientBoostingRegressor(
         max_depth=2,
         max_iter=5,
@@ -330,9 +343,10 @@ def test_sklearn_adapter_normalizes_hist_gradient_boosting_regressor() -> None:
     assert ensemble.trees[0].root.feature == "f0"
 
 
-def test_sklearn_adapter_preserves_hist_gradient_boosting_gain_and_cover() -> None:
-    X = [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0], [6.0], [7.0]]
-    y = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+def test_sklearn_adapter_preserves_hist_gradient_boosting_gain_and_cover(
+    tiny_regression_step_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_step_data
     model = HistGradientBoostingRegressor(
         max_depth=2,
         max_iter=3,
@@ -350,10 +364,11 @@ def test_sklearn_adapter_preserves_hist_gradient_boosting_gain_and_cover() -> No
     assert root.cover > 0.0
 
 
-def test_lightgbm_adapter_normalizes_structured_tree_dump() -> None:
-    X = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
-    y = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
-    train = lgb.Dataset(pd.DataFrame({"f0": X}), label=y)
+def test_lightgbm_adapter_normalizes_structured_tree_dump(
+    tiny_regression_step_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_step_data
+    train = lgb.Dataset(pd.DataFrame({"f0": [row[0] for row in X]}), label=y)
     booster = lgb.train(
         {
             "objective": "regression",
@@ -376,9 +391,11 @@ def test_lightgbm_adapter_normalizes_structured_tree_dump() -> None:
     assert ensemble.trees[0].root.feature == "f0"
 
 
-def test_feature_name_parity_across_histgb_lightgbm_and_xgboost() -> None:
-    X = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
-    y = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+def test_feature_name_parity_across_histgb_lightgbm_and_xgboost(
+    tiny_regression_step_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_step_data
+    flat_X = [row[0] for row in X]
 
     hist_model = HistGradientBoostingRegressor(
         max_depth=2,
@@ -386,10 +403,10 @@ def test_feature_name_parity_across_histgb_lightgbm_and_xgboost() -> None:
         min_samples_leaf=1,
         learning_rate=1.0,
         random_state=0,
-    ).fit([[value] for value in X], y)
+    ).fit(X, y)
     hist_name = SklearnAdapter().to_normalized_ensemble(hist_model).trees[0].root.feature
 
-    train = lgb.Dataset(pd.DataFrame({"fare": X}), label=y)
+    train = lgb.Dataset(pd.DataFrame({"fare": flat_X}), label=y)
     lgb_model = lgb.train(
         {
             "objective": "regression",
@@ -405,7 +422,7 @@ def test_feature_name_parity_across_histgb_lightgbm_and_xgboost() -> None:
     )
     lgb_name = LightGBMAdapter().to_normalized_ensemble(lgb_model).trees[0].root.feature
 
-    dtrain = xgb.DMatrix(pd.DataFrame({"fare": X}), label=y, feature_names=["fare"])
+    dtrain = xgb.DMatrix(pd.DataFrame({"fare": flat_X}), label=y, feature_names=["fare"])
     xgb_model = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 2, "eta": 1.0},
         dtrain=dtrain,

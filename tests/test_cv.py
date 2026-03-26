@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pandas as pd
-from sklearn.datasets import load_breast_cancer, load_diabetes
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import GroupKFold, KFold
 from sklearn.pipeline import Pipeline
@@ -11,10 +10,10 @@ import treefi
 from treefi.results import CrossValidatedResult
 
 
-def test_cross_validated_interactions_uses_regression_default_splitter() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_interactions_uses_regression_default_splitter(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_interactions(model, X, y, n_splits=3, top_k=10)
@@ -32,10 +31,10 @@ def test_cross_validated_interactions_uses_regression_default_splitter() -> None
     assert "mean_gain" in result.summary.columns
 
 
-def test_cross_validated_interactions_uses_classification_default_splitter() -> None:
-    cancer = load_breast_cancer(as_frame=True)
-    X = cancer.frame[cancer.feature_names].iloc[:180].reset_index(drop=True)
-    y = cancer.frame[cancer.target.name].iloc[:180].reset_index(drop=True)
+def test_cross_validated_interactions_uses_classification_default_splitter(
+    cv_classification_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_classification_dataset
     model = RandomForestClassifier(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_interactions(model, X, y, n_splits=4, top_k=10)
@@ -48,10 +47,10 @@ def test_cross_validated_interactions_uses_classification_default_splitter() -> 
     assert (result.summary["fold_presence_rate"] > 0.0).all()
 
 
-def test_cross_validated_interactions_accepts_explicit_cv_override() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_interactions_accepts_explicit_cv_override(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
     cv = KFold(n_splits=4, shuffle=True, random_state=7)
 
@@ -62,10 +61,10 @@ def test_cross_validated_interactions_accepts_explicit_cv_override() -> None:
     assert set(result.folds["fold"]) == {0, 1, 2, 3}
 
 
-def test_cross_validated_importance_returns_fold_and_summary_frames() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_importance_returns_fold_and_summary_frames(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_importance(model, X, y, n_splits=3, top_k=10)
@@ -81,10 +80,10 @@ def test_cross_validated_importance_returns_fold_and_summary_frames() -> None:
     assert "mean_cover" in result.summary.columns
 
 
-def test_cross_validated_importance_populates_explicit_importance_fields() -> None:
-    cancer = load_breast_cancer(as_frame=True)
-    X = cancer.frame[cancer.feature_names].iloc[:180].reset_index(drop=True)
-    y = cancer.frame[cancer.target.name].iloc[:180].reset_index(drop=True)
+def test_cross_validated_importance_populates_explicit_importance_fields(
+    cv_classification_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_classification_dataset
     model = RandomForestClassifier(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_importance(model, X, y, n_splits=4, top_k=10)
@@ -97,10 +96,10 @@ def test_cross_validated_importance_populates_explicit_importance_fields() -> No
     assert result.summary is result.importance_summary
 
 
-def test_cross_validated_interactions_add_stability_metrics_and_flags() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_interactions_add_stability_metrics_and_flags(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_interactions(model, X, y, n_splits=3, top_k=5)
@@ -119,10 +118,10 @@ def test_cross_validated_interactions_add_stability_metrics_and_flags() -> None:
     assert summary["overfit_suspect_flag"].isin([True, False]).all()
 
 
-def test_cross_validated_importance_add_stability_metrics_and_flags() -> None:
-    cancer = load_breast_cancer(as_frame=True)
-    X = cancer.frame[cancer.feature_names].iloc[:180].reset_index(drop=True)
-    y = cancer.frame[cancer.target.name].iloc[:180].reset_index(drop=True)
+def test_cross_validated_importance_add_stability_metrics_and_flags(
+    cv_classification_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_classification_dataset
     model = RandomForestClassifier(n_estimators=5, max_depth=3, random_state=0)
 
     result = treefi.cross_validated_importance(model, X, y, n_splits=4, top_k=5)
@@ -137,10 +136,10 @@ def test_cross_validated_importance_add_stability_metrics_and_flags() -> None:
     assert "overfit_suspect_flag" in summary.columns
 
 
-def test_cross_validated_results_keep_explicit_grouped_frames() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:100].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:100].reset_index(drop=True)
+def test_cross_validated_results_keep_explicit_grouped_frames(
+    cv_regression_dataset_small: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset_small
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
 
     interaction_result = treefi.cross_validated_interactions(model, X, y, n_splits=3, top_k=5)
@@ -152,10 +151,10 @@ def test_cross_validated_results_keep_explicit_grouped_frames() -> None:
     assert importance_result.importance_summary is not None
 
 
-def test_cross_validated_interactions_support_sklearn_pipeline() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_interactions_support_sklearn_pipeline(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     pipeline = Pipeline(
         [
             ("scale", StandardScaler()),
@@ -169,10 +168,10 @@ def test_cross_validated_interactions_support_sklearn_pipeline() -> None:
     assert result.metadata["task"] == "regression"
 
 
-def test_cross_validated_interactions_pass_groups_to_group_splitter() -> None:
-    diabetes = load_diabetes(as_frame=True)
-    X = diabetes.frame[diabetes.feature_names].iloc[:120].reset_index(drop=True)
-    y = diabetes.frame[diabetes.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_interactions_pass_groups_to_group_splitter(
+    cv_regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_regression_dataset
     groups = pd.Series([index // 10 for index in range(len(X))])
     model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
 
@@ -190,10 +189,10 @@ def test_cross_validated_interactions_pass_groups_to_group_splitter() -> None:
     assert set(result.folds["fold"]) == {0, 1, 2}
 
 
-def test_cross_validated_importance_pass_groups_to_group_splitter() -> None:
-    cancer = load_breast_cancer(as_frame=True)
-    X = cancer.frame[cancer.feature_names].iloc[:120].reset_index(drop=True)
-    y = cancer.frame[cancer.target.name].iloc[:120].reset_index(drop=True)
+def test_cross_validated_importance_pass_groups_to_group_splitter(
+    cv_classification_dataset_small: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = cv_classification_dataset_small
     groups = pd.Series([index // 8 for index in range(len(X))])
     model = RandomForestClassifier(n_estimators=5, max_depth=3, random_state=0)
 

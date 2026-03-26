@@ -35,13 +35,18 @@ def summarize_interactions(
         node = tree.get_node(node_id)
         if node.is_leaf:
             for record in records:
-                if record["leaf_effect"] is None and record["path_signature"] == tuple(seg.node_id for seg in path):
+                if record["leaf_effect"] is None and record["path_signature"] == tuple(
+                    seg.node_id for seg in path
+                ):
                     record["leaf_effect"] = node.leaf_value
             return
 
         current_gain = gain_sum + (node.gain or 0.0)
         current_cover = cover_sum + (node.cover or 0.0)
-        current_path = [*path, PathSegment(feature=node.feature or "", node_id=node.node_id, depth=len(path))]
+        current_path = [
+            *path,
+            PathSegment(feature=node.feature or "", node_id=node.node_id, depth=len(path)),
+        ]
 
         for start_index, segment in enumerate(current_path):
             interaction_depth = len(current_path) - start_index - 1
@@ -55,8 +60,12 @@ def summarize_interactions(
                 features=tuple(part.feature for part in path_slice),
                 mode=interaction_mode,
             )
-            record_gain = current_gain - gain_sum if start_index == len(current_path) - 1 else current_gain
-            record_cover = current_cover - cover_sum if start_index == len(current_path) - 1 else current_cover
+            record_gain = (
+                current_gain - gain_sum if start_index == len(current_path) - 1 else current_gain
+            )
+            record_cover = (
+                current_cover - cover_sum if start_index == len(current_path) - 1 else current_cover
+            )
             records.append(
                 {
                     "interaction": key.label,
@@ -87,7 +96,12 @@ def summarize_interactions(
                 current_path,
                 current_gain,
                 current_cover,
-                _child_path_probability(tree=tree, parent_node=node, child_id=node.left_child, path_probability=path_probability),
+                _child_path_probability(
+                    tree=tree,
+                    parent_node=node,
+                    child_id=node.left_child,
+                    path_probability=path_probability,
+                ),
             )
         if node.right_child is not None and node.right_child != node.left_child:
             visit(
@@ -95,7 +109,12 @@ def summarize_interactions(
                 current_path,
                 current_gain,
                 current_cover,
-                _child_path_probability(tree=tree, parent_node=node, child_id=node.right_child, path_probability=path_probability),
+                _child_path_probability(
+                    tree=tree,
+                    parent_node=node,
+                    child_id=node.right_child,
+                    path_probability=path_probability,
+                ),
             )
 
     visit(tree.root_id, [], 0.0, 0.0, 1.0)
@@ -129,9 +148,9 @@ def summarize_interactions(
             cast(int | float | str, record["cover"])
         )
         grouped[name]["fscore"] = int(cast(int, grouped[name]["fscore"])) + 1
-        grouped[name]["weighted_fscore"] = float(cast(float, grouped[name]["weighted_fscore"])) + float(
-            cast(int | float | str, record["weighted_fscore"])
-        )
+        grouped[name]["weighted_fscore"] = float(
+            cast(float, grouped[name]["weighted_fscore"])
+        ) + float(cast(int | float | str, record["weighted_fscore"]))
         grouped[name]["expected_gain"] = float(cast(float, grouped[name]["expected_gain"])) + float(
             cast(int | float | str, record["expected_gain"])
         )
@@ -150,7 +169,9 @@ def summarize_interactions(
         if leaf_effects[name]:
             mean = sum(leaf_effects[name]) / len(leaf_effects[name])
             row["leaf_effect_mean"] = mean
-            row["leaf_effect_var"] = sum((value - mean) ** 2 for value in leaf_effects[name]) / len(leaf_effects[name])
+            row["leaf_effect_var"] = sum((value - mean) ** 2 for value in leaf_effects[name]) / len(
+                leaf_effects[name]
+            )
         else:
             row["leaf_effect_mean"] = math.nan
             row["leaf_effect_var"] = math.nan
@@ -191,7 +212,9 @@ def _rank_desc(values: list[float]) -> list[int]:
     return ranks
 
 
-def _child_path_probability(tree: NormalizedTree, parent_node, child_id: int, path_probability: float) -> float:
+def _child_path_probability(
+    tree: NormalizedTree, parent_node, child_id: int, path_probability: float
+) -> float:
     parent_cover = parent_node.cover
     child_cover = tree.get_node(child_id).cover
     if parent_cover in {None, 0} or child_cover is None:

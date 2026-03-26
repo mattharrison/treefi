@@ -51,7 +51,11 @@ class SklearnAdapter(ModelAdapter):
         return type(model).__module__.startswith("sklearn.")
 
     def is_fitted(self, model) -> bool:
-        return hasattr(model, "tree_") or hasattr(model, "estimators_") or hasattr(model, "_predictors")
+        return (
+            hasattr(model, "tree_")
+            or hasattr(model, "estimators_")
+            or hasattr(model, "_predictors")
+        )
 
     def get_feature_names(self, model, feature_names=None) -> list[str]:
         n_features = getattr(model, "n_features_in_", None)
@@ -73,7 +77,9 @@ class SklearnAdapter(ModelAdapter):
             if max_trees is not None:
                 predictors = predictors[:max_trees]
             trees = [
-                self._normalize_hist_tree(predictor_row[0], feature_names_resolved, tree_index=index)
+                self._normalize_hist_tree(
+                    predictor_row[0], feature_names_resolved, tree_index=index
+                )
                 for index, predictor_row in enumerate(predictors)
             ]
         else:
@@ -87,11 +93,15 @@ class SklearnAdapter(ModelAdapter):
 
     def metric_capabilities(self) -> MetricCapabilities:
         return {
-            "gain": MetricCapability(status="approximate", detail="requires sklearn-specific derivation"),
+            "gain": MetricCapability(
+                status="approximate", detail="requires sklearn-specific derivation"
+            ),
             "cover": MetricCapability(status="approximate", detail="derived from sample counts"),
         }
 
-    def _normalize_tree(self, sklearn_tree, feature_names: list[str], tree_index: int) -> NormalizedTree:
+    def _normalize_tree(
+        self, sklearn_tree, feature_names: list[str], tree_index: int
+    ) -> NormalizedTree:
         nodes: list[NormalizedNode] = []
 
         for node_id in range(sklearn_tree.node_count):
@@ -128,14 +138,20 @@ class SklearnAdapter(ModelAdapter):
 
         return NormalizedTree(tree_index=tree_index, root_id=0, nodes=nodes)
 
-    def _derive_sklearn_gain(self, sklearn_tree, node_id: int, left_child: int, right_child: int) -> float:
+    def _derive_sklearn_gain(
+        self, sklearn_tree, node_id: int, left_child: int, right_child: int
+    ) -> float:
         node_weight = self._get_tree_cover(sklearn_tree, node_id)
         left_weight = self._get_tree_cover(sklearn_tree, left_child)
         right_weight = self._get_tree_cover(sklearn_tree, right_child)
         impurity = float(sklearn_tree.impurity[node_id])
         left_impurity = float(sklearn_tree.impurity[left_child])
         right_impurity = float(sklearn_tree.impurity[right_child])
-        return (impurity * node_weight) - (left_impurity * left_weight) - (right_impurity * right_weight)
+        return (
+            (impurity * node_weight)
+            - (left_impurity * left_weight)
+            - (right_impurity * right_weight)
+        )
 
     def _get_tree_cover(self, sklearn_tree, node_id: int) -> float:
         weighted_counts = getattr(sklearn_tree, "weighted_n_node_samples", None)
@@ -143,7 +159,9 @@ class SklearnAdapter(ModelAdapter):
             return float(weighted_counts[node_id])
         return float(sklearn_tree.n_node_samples[node_id])
 
-    def _normalize_hist_tree(self, predictor, feature_names: list[str], tree_index: int) -> NormalizedTree:
+    def _normalize_hist_tree(
+        self, predictor, feature_names: list[str], tree_index: int
+    ) -> NormalizedTree:
         nodes: list[NormalizedNode] = []
 
         for node_id, row in enumerate(predictor.nodes):
@@ -272,7 +290,9 @@ class CatBoostAdapter(ModelAdapter):
         if names:
             return [f"f{int(name)}" if str(name).isdigit() else str(name) for name in names]
 
-        n_features = getattr(model, "n_features_in_", None) or getattr(model, "_n_features_in", None)
+        n_features = getattr(model, "n_features_in_", None) or getattr(
+            model, "_n_features_in", None
+        )
         return resolve_feature_names(model, n_features=n_features)
 
     def to_normalized_ensemble(self, model, feature_names=None, max_trees=None):
@@ -295,7 +315,9 @@ class CatBoostAdapter(ModelAdapter):
                 status="approximate",
                 detail="derived from weighted variance reduction over CatBoost leaf values",
             ),
-            "cover": MetricCapability(status="approximate", detail="derived from CatBoost leaf weights"),
+            "cover": MetricCapability(
+                status="approximate", detail="derived from CatBoost leaf weights"
+            ),
         }
 
     def supports_categorical_splits(self) -> bool:
@@ -402,10 +424,12 @@ class CatBoostAdapter(ModelAdapter):
         total_weight = sum(weights)
         if total_weight <= 0.0:
             return 0.0
-        mean = sum(weight * value for weight, value in zip(weights, values, strict=False)) / total_weight
+        mean = (
+            sum(weight * value for weight, value in zip(weights, values, strict=False))
+            / total_weight
+        )
         return sum(
-            weight * ((value - mean) ** 2)
-            for weight, value in zip(weights, values, strict=False)
+            weight * ((value - mean) ** 2) for weight, value in zip(weights, values, strict=False)
         )
 
 
@@ -428,7 +452,11 @@ def _parse_catboost_json_split(split: dict, feature_names: list[str]) -> tuple[s
         return str(split.get("split_type", "unknown")), str(split)
 
     feature_index = int(split["float_feature_index"])
-    feature_name = feature_names[feature_index] if 0 <= feature_index < len(feature_names) else f"f{feature_index}"
+    feature_name = (
+        feature_names[feature_index]
+        if 0 <= feature_index < len(feature_names)
+        else f"f{feature_index}"
+    )
     if str(feature_name).isdigit():
         feature_name = f"f{feature_name}"
     return feature_name, f"< {float(split['border'])}"
@@ -459,7 +487,9 @@ class LightGBMAdapter(ModelAdapter):
             tree_info = tree_info[:max_trees]
 
         trees = [
-            self._normalize_tree_info(tree["tree_structure"], feature_names_resolved, tree_index=tree["tree_index"])
+            self._normalize_tree_info(
+                tree["tree_structure"], feature_names_resolved, tree_index=tree["tree_index"]
+            )
             for tree in tree_info
         ]
         return NormalizedEnsemble(trees=trees, backend="lightgbm", model_type=type(model).__name__)
@@ -467,7 +497,9 @@ class LightGBMAdapter(ModelAdapter):
     def metric_capabilities(self) -> MetricCapabilities:
         return {
             "gain": MetricCapability(status="exact"),
-            "cover": MetricCapability(status="approximate", detail="derived from LightGBM counts/weights"),
+            "cover": MetricCapability(
+                status="approximate", detail="derived from LightGBM counts/weights"
+            ),
         }
 
     def _get_booster(self, model):
@@ -477,7 +509,9 @@ class LightGBMAdapter(ModelAdapter):
             return model.booster_
         raise UnsupportedModelError(f"treefi does not support model type: {type(model).__name__}")
 
-    def _normalize_tree_info(self, tree_structure: dict, feature_names: list[str], tree_index: int) -> NormalizedTree:
+    def _normalize_tree_info(
+        self, tree_structure: dict, feature_names: list[str], tree_index: int
+    ) -> NormalizedTree:
         nodes: list[NormalizedNode] = []
 
         def visit(node: dict) -> int:
@@ -497,7 +531,11 @@ class LightGBMAdapter(ModelAdapter):
             left_child = visit(node["left_child"])
             right_child = visit(node["right_child"])
             feature_index = int(node["split_feature"])
-            feature_name = feature_names[feature_index] if 0 <= feature_index < len(feature_names) else f"f{feature_index}"
+            feature_name = (
+                feature_names[feature_index]
+                if 0 <= feature_index < len(feature_names)
+                else f"f{feature_index}"
+            )
             nodes.append(
                 NormalizedNode(
                     node_id=node_id,
@@ -513,7 +551,11 @@ class LightGBMAdapter(ModelAdapter):
             return node_id
 
         root_id = visit(tree_structure)
-        return NormalizedTree(tree_index=tree_index, root_id=root_id, nodes=sorted(nodes, key=lambda node: node.node_id))
+        return NormalizedTree(
+            tree_index=tree_index,
+            root_id=root_id,
+            nodes=sorted(nodes, key=lambda node: node.node_id),
+        )
 
 
 def get_adapter_for_model(model, adapters: list[ModelAdapter] | None = None) -> ModelAdapter:

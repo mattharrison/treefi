@@ -42,3 +42,70 @@ def classification_dataset() -> tuple[pd.DataFrame, pd.Series]:
     X = bunch.frame[bunch.feature_names].copy()
     y = bunch.frame[bunch.target.name].copy()
     return X.iloc[:250].reset_index(drop=True), y.iloc[:250].reset_index(drop=True)
+
+
+@pytest.fixture
+def tiny_regression_data() -> tuple[list[list[float]], list[float]]:
+    """Return a tiny single-feature regression dataset used in unit-style tests."""
+    return [[0.0], [1.0], [2.0], [3.0]], [0.0, 0.0, 1.0, 1.0]
+
+
+@pytest.fixture
+def tiny_classification_data() -> tuple[list[list[float]], list[int]]:
+    """Return a tiny single-feature binary classification dataset used in adapter tests."""
+    return [[0.0], [1.0], [2.0], [3.0]], [0, 0, 1, 1]
+
+
+@pytest.fixture
+def tiny_regression_data_with_tail() -> tuple[list[list[float]], list[float]]:
+    """Return a tiny regression dataset with a longer tail for shallow forest tests."""
+    return [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0]], [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+
+@pytest.fixture
+def tiny_regression_step_data() -> tuple[list[list[float]], list[float]]:
+    """Return a simple step-function regression dataset used in boosting tests."""
+    return (
+        [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0], [6.0], [7.0]],
+        [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0],
+    )
+
+
+@pytest.fixture
+def cv_regression_dataset(regression_dataset: tuple[pd.DataFrame, pd.Series]) -> tuple[pd.DataFrame, pd.Series]:
+    """Return the medium regression slice used throughout CV tests."""
+    X, y = regression_dataset
+    return X.iloc[:120].reset_index(drop=True), y.iloc[:120].reset_index(drop=True)
+
+
+@pytest.fixture
+def cv_regression_dataset_small(
+    regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Return the smaller regression slice used for grouped-result CV tests."""
+    X, y = regression_dataset
+    return X.iloc[:100].reset_index(drop=True), y.iloc[:100].reset_index(drop=True)
+
+
+@pytest.fixture
+def cv_classification_dataset(
+    classification_dataset: tuple[pd.DataFrame, pd.Series],
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Return the medium classification slice used throughout CV tests."""
+    X, y = classification_dataset
+    return X.iloc[:180].reset_index(drop=True), y.iloc[:180].reset_index(drop=True)
+
+
+@pytest.fixture
+def cv_classification_dataset_small(
+    classification_dataset: tuple[pd.DataFrame, pd.Series],
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Return the smaller classification slice used in grouped CV tests."""
+    X, y = classification_dataset
+    return X.iloc[:120].reset_index(drop=True), y.iloc[:120].reset_index(drop=True)
+
+
+@pytest.fixture
+def titanic_xy(titanic_frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    """Split the Titanic-like frame into features and target."""
+    return titanic_frame.drop(columns=["survived"]), titanic_frame["survived"]

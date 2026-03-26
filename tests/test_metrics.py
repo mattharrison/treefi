@@ -3,8 +3,10 @@ import sys
 from importlib.util import find_spec
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
+from treefi.api import _aggregate_importance_rows
 from treefi.metrics import summarize_interactions
 from treefi.models import NormalizedNode, NormalizedTree
 
@@ -251,3 +253,152 @@ def test_xgboost_metrics_remain_directionally_consistent_with_xgbfir() -> None:
     assert frame.iloc[0]["fscore"] == xgbfir_fscore
     assert frame.iloc[0]["weighted_fscore"] == xgbfir_weighted_fscore
     assert frame.iloc[0]["expected_gain"] == xgbfir_expected_gain
+
+
+def test_feature_importance_aggregation_recomputes_mean_style_metrics_correctly() -> None:
+    frame = _aggregate_importance_rows(
+        pd.DataFrame(
+            [
+                {
+                    "feature": "f0",
+                    "gain": 10.0,
+                    "cover": 100.0,
+                    "fscore": 2,
+                    "weighted_fscore": 0.5,
+                    "average_weighted_fscore": 0.25,
+                    "average_gain": 5.0,
+                    "expected_gain": 3.0,
+                    "average_tree_index": 1.0,
+                    "average_tree_depth": 0.0,
+                    "path_frequency": 2,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 2,
+                    "tree_count": 1.0,
+                },
+                {
+                    "feature": "f0",
+                    "gain": 4.0,
+                    "cover": 40.0,
+                    "fscore": 1,
+                    "weighted_fscore": 1.0,
+                    "average_weighted_fscore": 1.0,
+                    "average_gain": 4.0,
+                    "expected_gain": 4.0,
+                    "average_tree_index": 5.0,
+                    "average_tree_depth": 2.0,
+                    "path_frequency": 1,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 1,
+                    "tree_count": 1.0,
+                },
+            ]
+        )
+    )
+
+    row = frame.iloc[0]
+    assert row["gain"] == 14.0
+    assert row["fscore"] == 3
+    assert row["weighted_fscore"] == 1.5
+    assert row["average_weighted_fscore"] == pytest.approx(0.5)
+    assert row["average_gain"] == pytest.approx(14.0 / 3.0)
+    assert row["average_tree_index"] == pytest.approx(7.0 / 3.0)
+    assert row["average_tree_depth"] == pytest.approx(2.0 / 3.0)
+
+
+def test_feature_importance_aggregation_uses_deterministic_tie_breaking() -> None:
+    frame = _aggregate_importance_rows(
+        pd.DataFrame(
+            [
+                {
+                    "feature": "b",
+                    "gain": 1.0,
+                    "cover": 1.0,
+                    "fscore": 1,
+                    "weighted_fscore": 1.0,
+                    "average_weighted_fscore": 1.0,
+                    "average_gain": 1.0,
+                    "expected_gain": 1.0,
+                    "average_tree_index": 0.0,
+                    "average_tree_depth": 0.0,
+                    "path_frequency": 1,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 1,
+                    "tree_count": 1.0,
+                },
+                {
+                    "feature": "a",
+                    "gain": 1.0,
+                    "cover": 1.0,
+                    "fscore": 1,
+                    "weighted_fscore": 1.0,
+                    "average_weighted_fscore": 1.0,
+                    "average_gain": 1.0,
+                    "expected_gain": 1.0,
+                    "average_tree_index": 0.0,
+                    "average_tree_depth": 0.0,
+                    "path_frequency": 1,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 1,
+                    "tree_count": 1.0,
+                },
+            ]
+        )
+    ).sort_values(by=["gain", "feature"], ascending=[False, True], kind="mergesort")
+
+    assert frame["feature"].tolist() == ["a", "b"]
+
+
+def test_feature_importance_aggregation_remains_directionally_consistent_with_xgbfir() -> None:
+    if xgbfir is None:
+        pytest.skip("xgbfir reference package is not available in this checkout")
+
+    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
+    booster = xgb.train(
+        params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
+        dtrain=dtrain,
+        num_boost_round=2,
+    )
+
+    parser = xgbfir.main.XgbModelParser()
+    dump = booster.get_dump("", with_stats=True)
+    xgb_model = parser.GetXgbModelFromMemory(dump, maxTrees=100)
+    xgb_interactions = xgb_model.GetFeatureInteractions(maxInteractionDepth=0, maxDeepening=-1)
+    feature_rows = []
+    for feature_name, interaction in xgb_interactions.interactions.items():
+        feature_rows.append(
+            {
+                "feature": feature_name,
+                "gain": interaction.Gain,
+                "cover": interaction.Cover,
+                "fscore": interaction.FScore,
+                "weighted_fscore": interaction.FScoreWeighted,
+                "average_weighted_fscore": interaction.AverageFScoreWeighted,
+                "average_gain": interaction.AverageGain,
+                "expected_gain": interaction.ExpectedGain,
+                "average_tree_index": interaction.AverageTreeIndex,
+                "average_tree_depth": interaction.AverageTreeDepth,
+                "path_frequency": interaction.FScore,
+                "tree_frequency": 1.0,
+                "backend": "xgboost",
+                "model_type": "Booster",
+                "occurrence_count": interaction.FScore,
+                "tree_count": 1.0,
+            }
+        )
+
+    frame = _aggregate_importance_rows(pd.DataFrame(feature_rows))
+    row = frame.loc[frame["feature"] == "f0"].iloc[0]
+    reference = xgb_interactions.interactions["f0"]
+
+    assert row["gain"] == reference.Gain
+    assert row["fscore"] == reference.FScore
+    assert row["weighted_fscore"] == reference.FScoreWeighted
+    assert row["expected_gain"] == reference.ExpectedGain

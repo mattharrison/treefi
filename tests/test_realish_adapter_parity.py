@@ -213,3 +213,28 @@ def test_realistic_regression_models_expose_positive_gain_and_cover(
     assert frame["cover"].notna().all()
     assert (frame["gain"] >= 0.0).all()
     assert (frame["cover"] > 0.0).all()
+
+
+@pytest.mark.parametrize(
+    ("case_name", "builder"),
+    [
+        ("sklearn-rf-large", lambda X, y: RandomForestRegressor(n_estimators=5, max_depth=4, random_state=0).fit(X, y)),
+        ("histgb-large", lambda X, y: HistGradientBoostingRegressor(max_depth=4, max_iter=10, min_samples_leaf=5, learning_rate=0.2, random_state=0).fit(X, y)),
+        ("xgb-large", _xgb_regressor_large),
+        ("cat-large", _cat_regressor_large),
+        ("lgbm-large", _lgbm_regressor_large),
+    ],
+    ids=["sklearn-rf-large", "histgb-large", "xgb-large", "cat-large", "lgbm-large"],
+)
+def test_feature_importance_returns_one_row_per_feature_after_aggregation(
+    case_name: str,
+    builder: RegressionBuilder,
+    regression_dataset: tuple[pd.DataFrame, pd.Series],
+) -> None:
+    X, y = regression_dataset
+    model = builder(X, y)
+
+    frame = treefi.feature_importance(model, top_k=50)
+
+    assert not frame.empty
+    assert frame["feature"].nunique() == len(frame)

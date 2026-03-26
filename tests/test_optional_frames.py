@@ -3,8 +3,11 @@ from sklearn.tree import DecisionTreeRegressor
 import treefi
 
 
-def test_summarize_model_exposes_leaf_stats_frame() -> None:
-    model = DecisionTreeRegressor(max_depth=1, random_state=0).fit([[0.0], [1.0], [2.0], [3.0]], [0.0, 0.0, 1.0, 1.0])
+def test_summarize_model_exposes_leaf_stats_frame(
+    tiny_regression_data: tuple[list[list[float]], list[float]],
+) -> None:
+    X, y = tiny_regression_data
+    model = DecisionTreeRegressor(max_depth=1, random_state=0).fit(X, y)
 
     result = treefi.summarize_model(model, max_interaction_depth=0)
 
