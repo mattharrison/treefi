@@ -36,9 +36,7 @@ def test_readme_pycon_examples_run_as_doctests() -> None:
         filename="README.md",
         lineno=0,
     )
-    runner = doctest.DocTestRunner(
-        optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
-    )
+    runner = doctest.DocTestRunner(optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)
     runner.run(doctest_case)
     result = runner.summarize(verbose=False)
 

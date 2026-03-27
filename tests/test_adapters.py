@@ -52,7 +52,9 @@ class DummyAdapter(ModelAdapter):
         return MetricCapabilities(
             {
                 "gain": MetricCapability(status="exact"),
-                "cover": MetricCapability(status="approximate", detail="normalized from sample counts"),
+                "cover": MetricCapability(
+                    status="approximate", detail="normalized from sample counts"
+                ),
             }
         )
 
@@ -168,6 +170,10 @@ def test_sklearn_metric_capabilities_document_approximate_gain_and_cover() -> No
     assert "derivation" in capabilities["gain"].detail
     assert capabilities["cover"].status == "approximate"
     assert "sample counts" in capabilities["cover"].detail
+    assert capabilities["weight"].status == "exact"
+    assert capabilities["total_gain"].status == "approximate"
+    assert capabilities["total_cover"].status == "approximate"
+    assert capabilities["average_cover"].status == "approximate"
 
 
 def test_backend_metric_capability_statuses_remain_explicit() -> None:
@@ -177,10 +183,22 @@ def test_backend_metric_capability_statuses_remain_explicit() -> None:
 
     assert xgboost_capabilities["gain"].status == "exact"
     assert xgboost_capabilities["cover"].status == "exact"
+    assert xgboost_capabilities["total_gain"].status == "exact"
+    assert xgboost_capabilities["total_cover"].status == "exact"
+    assert xgboost_capabilities["weight"].status == "exact"
+    assert xgboost_capabilities["average_cover"].status == "exact"
     assert lightgbm_capabilities["gain"].status == "exact"
     assert lightgbm_capabilities["cover"].status == "approximate"
+    assert lightgbm_capabilities["total_gain"].status == "exact"
+    assert lightgbm_capabilities["total_cover"].status == "approximate"
+    assert lightgbm_capabilities["weight"].status == "exact"
+    assert lightgbm_capabilities["average_cover"].status == "approximate"
     assert catboost_capabilities["gain"].status == "approximate"
     assert catboost_capabilities["cover"].status == "approximate"
+    assert catboost_capabilities["total_gain"].status == "synthetic"
+    assert catboost_capabilities["total_cover"].status == "approximate"
+    assert catboost_capabilities["weight"].status == "exact"
+    assert catboost_capabilities["average_cover"].status == "approximate"
 
 
 def test_sklearn_adapter_derives_gain_and_cover_for_decision_tree_regressor(
@@ -213,7 +231,9 @@ def test_sklearn_adapter_derives_gain_and_cover_for_random_forest_trees(
 
 
 def test_xgboost_adapter_normalizes_booster() -> None:
-    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"]
+    )
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
         dtrain=dtrain,
@@ -245,7 +265,9 @@ def test_xgboost_adapter_normalizes_sklearn_wrapper_via_get_booster() -> None:
 
 
 def test_xgboost_feature_name_resolution_does_not_mutate_source_booster() -> None:
-    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["orig"])
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["orig"]
+    )
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
         dtrain=dtrain,
@@ -317,6 +339,8 @@ def test_catboost_metric_capabilities_mark_gain_and_cover_approximate() -> None:
     assert "variance reduction" in capabilities["gain"].detail
     assert capabilities["cover"].status == "approximate"
     assert "leaf weights" in capabilities["cover"].detail
+    assert capabilities["total_gain"].status == "synthetic"
+    assert capabilities["weight"].status == "exact"
 
 
 def test_catboost_adapter_explicitly_marks_categorical_split_normalization_unsupported() -> None:

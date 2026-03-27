@@ -20,7 +20,7 @@ def test_feature_importance_returns_dataframe_for_sklearn_decision_tree(
     assert frame.iloc[0]["gain"] == 1.0
     assert frame.iloc[0]["cover"] == 4.0
     assert "gain" in frame.columns
-    assert "fscore" in frame.columns
+    assert "weight" in frame.columns
 
 
 def test_feature_interactions_returns_dataframe_for_sklearn_decision_tree(
@@ -62,9 +62,9 @@ def test_feature_importance_aggregates_duplicate_features_across_sklearn_forest_
     frame = treefi.feature_importance(model)
 
     assert frame["feature"].tolist() == ["f0"]
-    assert frame.iloc[0]["fscore"] == 2
+    assert frame.iloc[0]["weight"] == 2
     assert frame.iloc[0]["tree_count"] == 2.0
-    assert frame.iloc[0]["gain"] > 0.0
+    assert frame.iloc[0]["total_gain"] > 0.0
 
 
 def test_feature_importance_applies_top_k_after_feature_level_aggregation(
@@ -80,7 +80,9 @@ def test_feature_importance_applies_top_k_after_feature_level_aggregation(
 
 
 def test_feature_interactions_returns_dataframe_for_xgboost_booster() -> None:
-    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"]
+    )
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
         dtrain=dtrain,

@@ -97,6 +97,16 @@ class SklearnAdapter(ModelAdapter):
                 status="approximate", detail="requires sklearn-specific derivation"
             ),
             "cover": MetricCapability(status="approximate", detail="derived from sample counts"),
+            "weight": MetricCapability(status="exact", detail="split count"),
+            "total_gain": MetricCapability(
+                status="approximate", detail="sum of derived sklearn split gains"
+            ),
+            "total_cover": MetricCapability(
+                status="approximate", detail="sum of derived sklearn node sample counts"
+            ),
+            "average_cover": MetricCapability(
+                status="approximate", detail="derived from sample counts per split occurrence"
+            ),
         }
 
     def _normalize_tree(
@@ -255,6 +265,10 @@ class XGBoostAdapter(ModelAdapter):
         return {
             "gain": MetricCapability(status="exact"),
             "cover": MetricCapability(status="exact"),
+            "weight": MetricCapability(status="exact", detail="XGBoost split count"),
+            "total_gain": MetricCapability(status="exact"),
+            "total_cover": MetricCapability(status="exact"),
+            "average_cover": MetricCapability(status="exact"),
         }
 
     def _get_booster(self, model):
@@ -317,6 +331,17 @@ class CatBoostAdapter(ModelAdapter):
             ),
             "cover": MetricCapability(
                 status="approximate", detail="derived from CatBoost leaf weights"
+            ),
+            "weight": MetricCapability(status="exact", detail="split count"),
+            "total_gain": MetricCapability(
+                status="synthetic",
+                detail="sum of CatBoost gain proxies derived from exported leaf values",
+            ),
+            "total_cover": MetricCapability(
+                status="approximate", detail="sum of cover derived from CatBoost leaf weights"
+            ),
+            "average_cover": MetricCapability(
+                status="approximate", detail="average cover derived from CatBoost leaf weights"
             ),
         }
 
@@ -499,6 +524,14 @@ class LightGBMAdapter(ModelAdapter):
             "gain": MetricCapability(status="exact"),
             "cover": MetricCapability(
                 status="approximate", detail="derived from LightGBM counts/weights"
+            ),
+            "weight": MetricCapability(status="exact", detail="split count"),
+            "total_gain": MetricCapability(status="exact"),
+            "total_cover": MetricCapability(
+                status="approximate", detail="sum of LightGBM exported counts/weights"
+            ),
+            "average_cover": MetricCapability(
+                status="approximate", detail="average LightGBM exported counts/weights"
             ),
         }
 

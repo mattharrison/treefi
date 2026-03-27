@@ -93,7 +93,9 @@ def test_normalized_ensemble_preserves_tree_order_and_lookup() -> None:
         nodes=[NormalizedNode(node_id=0, is_leaf=True, leaf_value=0.9)],
     )
 
-    ensemble = NormalizedEnsemble(trees=[tree0, tree1], backend="sklearn", model_type="DecisionTreeRegressor")
+    ensemble = NormalizedEnsemble(
+        trees=[tree0, tree1], backend="sklearn", model_type="DecisionTreeRegressor"
+    )
 
     assert ensemble.backend == "sklearn"
     assert ensemble.model_type == "DecisionTreeRegressor"
@@ -114,7 +116,9 @@ def test_normalized_ensemble_rejects_duplicate_tree_indexes() -> None:
     )
 
     with pytest.raises(ValueError, match="tree_index"):
-        NormalizedEnsemble(trees=[tree0, duplicate], backend="sklearn", model_type="RandomForestRegressor")
+        NormalizedEnsemble(
+            trees=[tree0, duplicate], backend="sklearn", model_type="RandomForestRegressor"
+        )
 
 
 def test_path_segment_captures_feature_position_and_node() -> None:

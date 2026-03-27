@@ -211,7 +211,9 @@ def test_xgboost_metrics_remain_directionally_consistent_with_xgbfir() -> None:
     if xgbfir is None:
         pytest.skip("xgbfir reference package is not available in this checkout")
 
-    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"]
+    )
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
         dtrain=dtrain,
@@ -300,11 +302,13 @@ def test_feature_importance_aggregation_recomputes_mean_style_metrics_correctly(
     )
 
     row = frame.iloc[0]
-    assert row["gain"] == 14.0
-    assert row["fscore"] == 3
+    assert row["gain"] == pytest.approx(14.0 / 3.0)
+    assert row["weight"] == 3
+    assert row["total_gain"] == 14.0
+    assert row["total_cover"] == 140.0
     assert row["weighted_fscore"] == 1.5
     assert row["average_weighted_fscore"] == pytest.approx(0.5)
-    assert row["average_gain"] == pytest.approx(14.0 / 3.0)
+    assert row["cover"] == pytest.approx(140.0 / 3.0)
     assert row["average_tree_index"] == pytest.approx(7.0 / 3.0)
     assert row["average_tree_depth"] == pytest.approx(2.0 / 3.0)
 
@@ -360,7 +364,9 @@ def test_feature_importance_aggregation_remains_directionally_consistent_with_xg
     if xgbfir is None:
         pytest.skip("xgbfir reference package is not available in this checkout")
 
-    dtrain = xgb.DMatrix([[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"])
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0]], label=[0.0, 0.0, 1.0, 1.0], feature_names=["f0"]
+    )
     booster = xgb.train(
         params={"objective": "reg:squarederror", "max_depth": 1, "eta": 1.0},
         dtrain=dtrain,
@@ -398,7 +404,111 @@ def test_feature_importance_aggregation_remains_directionally_consistent_with_xg
     row = frame.loc[frame["feature"] == "f0"].iloc[0]
     reference = xgb_interactions.interactions["f0"]
 
-    assert row["gain"] == reference.Gain
-    assert row["fscore"] == reference.FScore
+    assert row["gain"] == reference.AverageGain
+    assert row["weight"] == reference.FScore
+    assert row["total_gain"] == reference.Gain
+    assert row["cover"] == pytest.approx(reference.Cover / reference.FScore)
+    assert row["total_cover"] == reference.Cover
     assert row["weighted_fscore"] == reference.FScoreWeighted
     assert row["expected_gain"] == reference.ExpectedGain
+
+
+def test_xgboost_compatible_alias_columns_match_booster_importance_types() -> None:
+    dtrain = xgb.DMatrix(
+        [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0]],
+        label=[0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        feature_names=["f0"],
+    )
+    booster = xgb.train(
+        params={"objective": "reg:squarederror", "max_depth": 2, "eta": 1.0},
+        dtrain=dtrain,
+        num_boost_round=3,
+    )
+
+    from treefi import feature_importance
+
+    frame = feature_importance(booster)
+    row = frame.loc[frame["feature"] == "f0"].iloc[0]
+
+    xgb_weight = booster.get_score(importance_type="weight")["f0"]
+    xgb_gain = booster.get_score(importance_type="gain")["f0"]
+    xgb_cover = booster.get_score(importance_type="cover")["f0"]
+    xgb_total_gain = booster.get_score(importance_type="total_gain")["f0"]
+    xgb_total_cover = booster.get_score(importance_type="total_cover")["f0"]
+
+    assert row["weight"] == xgb_weight
+    assert row["gain"] == pytest.approx(xgb_gain)
+    assert row["total_gain"] == pytest.approx(xgb_total_gain)
+    assert row["cover"] == pytest.approx(xgb_cover)
+    assert row["total_cover"] == pytest.approx(xgb_total_cover)
+
+
+def test_feature_importance_accepts_non_breaking_xgboost_style_sort_aliases() -> None:
+    frame = _aggregate_importance_rows(
+        pd.DataFrame(
+            [
+                {
+                    "feature": "a",
+                    "gain": 10.0,
+                    "cover": 20.0,
+                    "fscore": 2,
+                    "weighted_fscore": 1.0,
+                    "average_weighted_fscore": 0.5,
+                    "average_gain": 5.0,
+                    "expected_gain": 4.0,
+                    "average_tree_index": 0.0,
+                    "average_tree_depth": 0.0,
+                    "path_frequency": 2,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 2,
+                    "tree_count": 1.0,
+                },
+                {
+                    "feature": "b",
+                    "gain": 12.0,
+                    "cover": 3.0,
+                    "fscore": 1,
+                    "weighted_fscore": 1.0,
+                    "average_weighted_fscore": 1.0,
+                    "average_gain": 12.0,
+                    "expected_gain": 12.0,
+                    "average_tree_index": 0.0,
+                    "average_tree_depth": 0.0,
+                    "path_frequency": 1,
+                    "tree_frequency": 1.0,
+                    "backend": "x",
+                    "model_type": "m",
+                    "occurrence_count": 1,
+                    "tree_count": 1.0,
+                },
+            ]
+        )
+    )
+
+    assert frame.sort_values("gain", ascending=False)["feature"].tolist() == ["b", "a"]
+    assert frame.sort_values("total_gain", ascending=False)["feature"].tolist() == ["b", "a"]
+    assert frame.sort_values("weight", ascending=False)["feature"].tolist() == ["a", "b"]
+    assert frame.sort_values("cover", ascending=False)["feature"].tolist() == ["a", "b"]
+
+
+def test_feature_importance_sort_aliases_map_legacy_names_to_new_canonical_columns() -> None:
+    from sklearn.ensemble import RandomForestRegressor
+
+    X = [[0.0], [1.0], [2.0], [3.0], [4.0], [5.0]]
+    y = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+    model = RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0).fit(X, y)
+
+    from treefi import feature_importance
+
+    by_gain = feature_importance(model, sort_by="gain")
+    by_average_gain = feature_importance(model, sort_by="average_gain")
+    by_cover = feature_importance(model, sort_by="cover")
+    by_average_cover = feature_importance(model, sort_by="average_cover")
+    by_weight = feature_importance(model, sort_by="weight")
+    by_fscore = feature_importance(model, sort_by="fscore")
+
+    assert by_gain["feature"].tolist() == by_average_gain["feature"].tolist()
+    assert by_cover["feature"].tolist() == by_average_cover["feature"].tolist()
+    assert by_weight["feature"].tolist() == by_fscore["feature"].tolist()

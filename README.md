@@ -44,15 +44,49 @@ uv run pytest
 ...     sort_by="gain",
 ...     top_k=20,
 ... )
->>> {"interaction", "gain", "expected_gain"}.issubset(interactions.columns)
-True
+>>> interactions.head(5)
+  interaction  interaction_order  ...  feature_count  path_probability_sum
+0      bmi|s5                2.0  ...            2.0             42.135747
+1         bmi                1.0  ...            1.0             66.757919
+2      bmi|bp                2.0  ...            2.0             16.579186
+3      bmi|s6                2.0  ...            2.0              8.889140
+4      bmi|s1                2.0  ...            2.0              0.660633
+<BLANKLINE>
+[5 rows x 28 columns]
+
+>>> interactions.columns
+Index(['interaction', 'interaction_order', 'gain', 'cover', 'fscore',
+       'weighted_fscore', 'average_weighted_fscore', 'average_gain',
+       'expected_gain', 'average_tree_index', 'average_tree_depth',
+       'tree_frequency', 'path_frequency', 'first_position_mean', 'min_depth',
+       'max_depth', 'leaf_effect_mean', 'leaf_effect_var', 'rank_gain',
+       'rank_fscore', 'rank_expected_gain', 'rank_consensus', 'backend',
+       'model_type', 'occurrence_count', 'tree_count', 'feature_count',
+       'path_probability_sum'],
+      dtype='str')
+
 >>> importance = treefi.feature_importance(
 ...     model,
 ...     sort_by="gain",
 ...     top_k=20,
 ... )
->>> importance["feature"].is_unique
-True
+>>> importance.head()
+  feature           gain  ...  occurrence_count  tree_count
+0     bmi  218678.351847  ...               161        50.0
+1      s5  211505.225081  ...               132        50.0
+2      s6   66175.222795  ...                69        41.0
+3      bp   65271.672281  ...               111        49.0
+4      s4   59589.750490  ...                28        25.0
+<BLANKLINE>
+[5 rows x 15 columns]
+
+>>> importance.columns
+Index(['feature', 'gain', 'cover', 'weight', 'total_gain', 'total_cover',
+       'weighted_fscore', 'average_weighted_fscore', 'expected_gain',
+       'average_tree_index', 'average_tree_depth', 'backend', 'model_type',
+       'occurrence_count', 'tree_count'],
+      dtype='str')
+      
 >>> summary = treefi.summarize_model(
 ...     model,
 ...     max_interaction_depth=1,
@@ -87,10 +121,78 @@ Example:
 ...     n_splits=5,
 ...     top_k=10,
 ... )
->>> {"interaction", "mean_gain", "fold_presence_rate"}.issubset(cv_result.interaction_summary.columns)
-True
->>> cv_result.metadata["splitter"]
-'KFold'
+
+>>> cv_result.folds
+    interaction  interaction_order          gain  ...  fold  train_size  test_size
+0            s5                1.0  3.902246e+07  ...     0         353         89
+1        bmi|s5                2.0  1.702226e+08  ...     0         353         89
+2           bmi                1.0  4.378239e+07  ...     0         353         89
+3     bmi|bp|s5                3.0  4.640013e+07  ...     0         353         89
+4        bmi|bp                2.0  3.442126e+07  ...     0         353         89
+..          ...                ...           ...  ...   ...         ...        ...
+406   bp|s5|sex                3.0  8.947998e+05  ...     4         354         88
+407      bp|sex                2.0  8.947998e+05  ...     4         354         88
+408    s2|s4|s5                3.0  8.504072e+05  ...     4         354         88
+409       s2|s4                2.0  8.504072e+05  ...     4         354         88
+410   s4|s5|sex                3.0  8.646905e+05  ...     4         354         88
+<BLANKLINE>
+[411 rows x 31 columns]
+
+
+
+>>> cv_result.importance_summary
+
+>>> cv_result.interaction_folds
+    interaction  interaction_order          gain  ...  fold  train_size  test_size
+0            s5                1.0  3.902246e+07  ...     0         353         89
+1        bmi|s5                2.0  1.702226e+08  ...     0         353         89
+2           bmi                1.0  4.378239e+07  ...     0         353         89
+3     bmi|bp|s5                3.0  4.640013e+07  ...     0         353         89
+4        bmi|bp                2.0  3.442126e+07  ...     0         353         89
+..          ...                ...           ...  ...   ...         ...        ...
+406   bp|s5|sex                3.0  8.947998e+05  ...     4         354         88
+407      bp|sex                2.0  8.947998e+05  ...     4         354         88
+408    s2|s4|s5                3.0  8.504072e+05  ...     4         354         88
+409       s2|s4                2.0  8.504072e+05  ...     4         354         88
+410   s4|s5|sex                3.0  8.646905e+05  ...     4         354         88
+<BLANKLINE>
+[411 rows x 31 columns]
+
+>>> cv_result.interaction_summary
+    interaction     mean_gain  ...  cv_instability_flag  suspicious_feature_score
+0            s5  3.662796e+07  ...                False                       0.0
+1        bmi|s5  1.289095e+08  ...                False                       0.0
+2           bmi  4.519529e+07  ...                False                       1.0
+3     bmi|bp|s5  3.169041e+07  ...                False                       1.0
+4        bmi|bp  2.544942e+07  ...                False                       1.0
+..          ...           ...  ...                  ...                       ...
+120       s1|s4  1.979224e+06  ...                False                       1.0
+121   age|s1|s4  9.963473e+05  ...                False                       1.0
+122   bp|s3|sex  8.689495e+05  ...                False                       1.0
+123    bp|s1|s3  1.580895e+06  ...                False                       1.0
+124   s4|s5|sex  8.646905e+05  ...                False                       1.0
+<BLANKLINE>
+[125 rows x 31 columns]
+
+>>> cv_result.metadata
+{'task': 'regression', 'splitter': 'KFold', 'n_splits': 5}
+
+>>> cv_result.summary
+    interaction     mean_gain  ...  cv_instability_flag  suspicious_feature_score
+0            s5  3.662796e+07  ...                False                       0.0
+1        bmi|s5  1.289095e+08  ...                False                       0.0
+2           bmi  4.519529e+07  ...                False                       1.0
+3     bmi|bp|s5  3.169041e+07  ...                False                       1.0
+4        bmi|bp  2.544942e+07  ...                False                       1.0
+..          ...           ...  ...                  ...                       ...
+120       s1|s4  1.979224e+06  ...                False                       1.0
+121   age|s1|s4  9.963473e+05  ...                False                       1.0
+122   bp|s3|sex  8.689495e+05  ...                False                       1.0
+123    bp|s1|s3  1.580895e+06  ...                False                       1.0
+124   s4|s5|sex  8.646905e+05  ...                False                       1.0
+<BLANKLINE>
+[125 rows x 31 columns]
+
 ```
 
 For feature importance:
@@ -103,9 +205,155 @@ For feature importance:
 ...     n_splits=5,
 ...     top_k=10,
 ... )
->>> {"feature", "mean_gain", "fold_presence_rate"}.issubset(cv_importance.importance_summary.columns)
-True
+
+>>> cv_importance.summary.head()
+  feature      mean_gain  ...  cv_instability_flag  suspicious_feature_score
+0      s5  219332.121747  ...                False                       0.0
+1     bmi  144604.201773  ...                False                       0.0
+2      bp   57327.316224  ...                False                       0.0
+3      s1   26106.343731  ...                False                       0.0
+4     age   26647.991164  ...                False                       1.0
+<BLANKLINE>
+[5 rows x 35 columns]
+
+>>> cv_importance.interaction_summary.head()
+  feature      mean_gain  ...  cv_instability_flag  suspicious_feature_score
+0      s5  219332.121747  ...                False                       0.0
+1     bmi  144604.201773  ...                False                       0.0
+2      bp   57327.316224  ...                False                       0.0
+3      s1   26106.343731  ...                False                       0.0
+4     age   26647.991164  ...                False                       1.0
+<BLANKLINE>
+[5 rows x 35 columns]
+
 ```
+
+### Real-World Check With Added Random Columns
+
+When you are trying to decide whether a suspicious feature is genuinely useful or
+just picking up noise, it helps to inspect multiple importance views on the same
+model.
+
+The example below adds random columns to a realistic regression dataset, fits
+XGBoost, and compares:
+
+- `total_gain`: summed contribution across all splits
+- `gain`: average gain per split
+- `weight`: split count
+
+```pycon
+>>> import numpy as np
+>>> import xgboost as xgb
+>>> rng = np.random.default_rng(0)
+>>> diabetes = load_diabetes(as_frame=True)
+>>> X = diabetes.frame[diabetes.feature_names].copy()
+>>> y = diabetes.frame[diabetes.target.name]
+>>> for i in range(3):
+...     X[f"rand_{i}"] = rng.normal(size=len(X))
+>>> model = xgb.XGBRegressor(
+...     objective="reg:squarederror",
+...     max_depth=4,
+...     n_estimators=40,
+...     learning_rate=0.1,
+...     random_state=0,
+... )
+>>> model.fit(X, y)
+XGBRegressor(...)
+>>> by_total = treefi.feature_importance(model, sort_by="total_gain")
+>>> print(by_total.sort_values('total_gain', ascending=False)[['feature', 'gain', 'total_gain', 'cover', 'weight', 'occurrence_count']])
+   feature          gain    total_gain       cover  weight  occurrence_count
+0       s5  77670.656672  4.504898e+06  239.068966      58                58
+1      bmi  34465.279722  2.653827e+06  162.155844      77                77
+2       bp  13549.734904  8.129841e+05  125.466667      60                60
+3   rand_1   9234.090478  5.448113e+05  158.762712      59                59
+4       s6  14093.099014  4.227930e+05  121.700000      30                30
+5       s1   8627.091134  4.054733e+05   51.191489      47                47
+6   rand_0   8232.303106  3.539890e+05  142.581395      43                43
+7       s2   9957.913378  3.485270e+05   47.657143      35                35
+8       s3  10808.439566  3.350616e+05  145.774194      31                31
+9      age   5474.074392  2.901259e+05   60.716981      53                53
+10  rand_2   6445.974136  1.740413e+05   74.296296      27                27
+11     sex   8337.355618  1.667471e+05  111.100000      20                20
+12      s4  15119.451459  1.511945e+05  153.200000      10                10
+
+>>> print(by_total.sort_values('gain', ascending=False)[['feature', 'gain', 'total_gain', 'cover', 'weight', 'occurrence_count']])
+   feature          gain    total_gain       cover  weight  occurrence_count
+0       s5  77670.656672  4.504898e+06  239.068966      58                58
+1      bmi  34465.279722  2.653827e+06  162.155844      77                77
+12      s4  15119.451459  1.511945e+05  153.200000      10                10
+4       s6  14093.099014  4.227930e+05  121.700000      30                30
+2       bp  13549.734904  8.129841e+05  125.466667      60                60
+8       s3  10808.439566  3.350616e+05  145.774194      31                31
+7       s2   9957.913378  3.485270e+05   47.657143      35                35
+3   rand_1   9234.090478  5.448113e+05  158.762712      59                59
+5       s1   8627.091134  4.054733e+05   51.191489      47                47
+11     sex   8337.355618  1.667471e+05  111.100000      20                20
+6   rand_0   8232.303106  3.539890e+05  142.581395      43                43
+10  rand_2   6445.974136  1.740413e+05   74.296296      27                27
+9      age   5474.074392  2.901259e+05   60.716981      53                53
+
+
+```
+
+This is the practical point:
+
+- a noisy feature can rank surprisingly high by `total_gain` if the model uses it often
+- `gain` helps separate "used often" from "strong each time"
+- `weight` helps show whether a feature is just appearing everywhere
+
+If a random-looking feature still seems suspicious, check its cross-validated
+stability instead of trusting one fitted model:
+
+```pycon
+>>> cv_importance = treefi.cross_validated_importance(
+...     xgb.XGBRegressor(
+...         objective="reg:squarederror",
+...         max_depth=4,
+...         n_estimators=20,
+...         learning_rate=0.1,
+...         random_state=0,
+...     ),
+...     X,
+...     y,
+...     n_splits=3,
+...     top_k=8,
+... )
+>>> print(
+...     cv_importance.importance_summary[
+...         [
+...             "feature",
+...             "mean_gain",
+...             "fold_presence_rate",
+...             "selection_rate_top_k",
+...             "gain_cv",
+...             "overfit_suspect_flag",
+...             "high_weight_low_gain_flag",
+...             "low_consensus_top_k_flag",
+...             "suspicious_feature_score",
+...         ]
+...     ].to_string(index=False)
+... )
+feature    mean_gain  fold_presence_rate  selection_rate_top_k  gain_cv  overfit_suspect_flag  high_weight_low_gain_flag  low_consensus_top_k_flag  suspicious_feature_score
+    bmi 52894.239138            1.000000              1.000000 0.435574                 False                      False                     False                       0.0
+     s5 61718.260891            1.000000              1.000000 0.385884                 False                      False                     False                       0.0
+     s1 10909.057178            1.000000              1.000000 0.271382                 False                      False                     False                       0.0
+     s3 14398.340383            0.666667              0.666667 0.273421                 False                      False                      True                       1.0
+     s6 20146.245117            1.000000              1.000000 0.551411                 False                      False                     False                       0.0
+     bp 16654.948841            1.000000              1.000000 0.049289                 False                      False                     False                       0.0
+ rand_1 10578.990241            0.666667              0.666667 0.276258                 False                       True                      True                       2.0
+     s2 13392.392551            0.666667              0.666667 0.150914                 False                      False                      True                       1.0
+ rand_0 10238.738508            0.333333              0.333333 0.000000                 False                      False                      True                       1.0
+    sex  4059.374560            0.333333              0.333333 0.000000                 False                      False                      True                       1.0
+    age  6981.577176            0.333333              0.333333 0.000000                 False                       True                      True                       2.0
+```
+
+These doctest examples are intentionally written as realistic usage examples.
+They are executable, but the main goal is to show how you would inspect real
+dataframes in practice rather than just assert one minimal condition.
+
+Treat these suspicious-feature columns as heuristics rather than proof. A high
+score is a prompt to inspect, regularize, or validate more carefully, not proof
+that a feature is useless or leaked.
 
 By default:
 
@@ -141,6 +389,21 @@ Useful columns:
 - `rank_stability_score`: higher means more stable rank across folds
 - `rare_fold_flag`: appears in too few folds to trust much
 - `overfit_suspect_flag`: heuristic warning for strong-but-unstable patterns
+- `cv_instability_flag`: broader warning for fold-volatile patterns
+- `high_total_gain_low_density_flag`: high total contribution driven more by repeated usage than by strong individual splits
+- `high_weight_low_gain_flag`: used very often, but each use is weak on average
+- `low_consensus_top_k_flag`: looks strong in one fit but rarely lands in the fold-level top `k`
+- `weak_signal_density_flag`: weak prevalence-adjusted signal despite nontrivial total contribution
+- `suspicious_feature_score`: simple combined heuristic that reduces reliance on any one boolean flag
+
+Diagnostic taxonomy:
+
+- unstable features:
+  high fold-to-fold variance and weak repeatability; inspect `gain_cv`, `expected_gain_cv`, `cv_instability_flag`, and sometimes `overfit_suspect_flag`
+- low-density features:
+  features or interactions that accumulate `total_gain` mostly by being used a lot rather than by being strong each time; inspect `high_total_gain_low_density_flag`, `high_weight_low_gain_flag`, and `weak_signal_density_flag`
+- weak-consensus features:
+  features or interactions that can look good in one fitted model but do not repeatedly show up near the top across folds; inspect `selection_rate_top_k` and `low_consensus_top_k_flag`
 
 Practical interpretation:
 
@@ -149,6 +412,7 @@ Practical interpretation:
 - high `gain_cv` or `expected_gain_cv` means the result is unstable across folds
 - `rare_fold_flag=True` is a warning to be skeptical
 - `overfit_suspect_flag=True` means the pattern may be real, but it needs stronger validation before you engineer around it
+- `suspicious_feature_score` is a triage aid, not proof that a feature is useless, noisy, or leaked
 
 ### Time-Series And Leakage-Sensitive Work
 
@@ -168,6 +432,28 @@ For time-series problems, prefer something like sklearn `TimeSeriesSplit` or a c
 
 Returns one row per feature.
 
+```pycon
+>>> importance = treefi.feature_importance(model)
+>>> importance.iloc[0]
+feature                                s5
+gain                         77670.656672
+cover                          239.068966
+weight                                 58
+total_gain                  4504898.08698
+total_cover                       13866.0
+weighted_fscore                 31.371041
+average_weighted_fscore           0.54088
+expected_gain              4195112.317978
+average_tree_index              15.327586
+average_tree_depth                0.62069
+backend                           xgboost
+model_type                   XGBRegressor
+occurrence_count                       58
+tree_count                           33.0
+Name: 0, dtype: object
+```
+
+
 Useful when you want:
 
 - a dataframe replacement for tree-model feature importance summaries
@@ -181,6 +467,42 @@ final feature-level totals or averages, not on raw per-tree rows.
 ### `feature_interactions(...)`
 
 Returns one row per interaction.
+
+```pycon
+>>> interactions = treefi.feature_interactions(model)
+>>> (interactions
+...    .query('interaction_order>1')
+...    .iloc[0])
+interaction                        bmi|s5
+interaction_order                     2.0
+gain                       20656941.56573
+cover                             39423.0
+fscore                                 51
+weighted_fscore                 20.058824
+average_weighted_fscore          0.457025
+average_gain                289595.156457
+expected_gain              7284911.493426
+average_tree_index              10.315789
+average_tree_depth               1.315789
+tree_frequency                        1.0
+path_frequency                         51
+first_position_mean              0.339474
+min_depth                        1.210526
+max_depth                        2.052632
+leaf_effect_mean                -0.533484
+leaf_effect_var                       0.0
+rank_gain                        5.842105
+rank_fscore                      6.263158
+rank_expected_gain               2.315789
+rank_consensus                   4.807018
+backend                           xgboost
+model_type                   XGBRegressor
+occurrence_count                       51
+tree_count                           19.0
+feature_count                         2.0
+path_probability_sum            20.058824
+Name: 1, dtype: object
+```
 
 Useful when you want:
 
@@ -198,6 +520,67 @@ Returns an `AnalysisResult` bundle with:
 - `metadata`
 
 Use this when you want one call that gives you the main analysis tables together.
+
+```pycon
+>>> summary = treefi.summarize_model(model)
+>>> summary.interactions.iloc[0]
+interaction                            s5
+interaction_order                     1.0
+gain                        4845136.24275
+cover                             17146.0
+fscore                                 62
+weighted_fscore                   32.5181
+average_weighted_fscore          0.590382
+average_gain                 78306.963925
+expected_gain              4299055.207119
+average_tree_index                   17.0
+average_tree_depth               0.757576
+tree_frequency                        1.0
+path_frequency                         62
+first_position_mean              1.373232
+min_depth                        0.757576
+max_depth                        1.878788
+leaf_effect_mean                -0.072035
+leaf_effect_var                  1.272988
+rank_gain                       18.212121
+rank_fscore                      7.545455
+rank_expected_gain               6.939394
+rank_consensus                   10.89899
+backend                           xgboost
+model_type                   XGBRegressor
+occurrence_count                       62
+tree_count                           33.0
+feature_count                         1.0
+path_probability_sum              32.5181
+Name: 0, dtype: object
+
+>>> summary.importance.iloc[0]
+feature                                s5
+gain                         77670.656672
+cover                          239.068966
+weight                                 58
+total_gain                  4504898.08698
+total_cover                       13866.0
+weighted_fscore                 31.371041
+average_weighted_fscore           0.54088
+expected_gain              4195112.317978
+average_tree_index              15.327586
+average_tree_depth                0.62069
+backend                           xgboost
+model_type                   XGBRegressor
+occurrence_count                       58
+tree_count                           33.0
+Name: 0, dtype: object
+
+>>> summary.leaf_stats.iloc[0]
+interaction               s5
+leaf_effect_mean   -0.072035
+leaf_effect_var     1.272988
+Name: 0, dtype: object
+
+>>> summary.metadata
+{'backend': 'xgboost', 'model_type': 'XGBRegressor'}
+```
 
 ## What Interactions Mean
 
@@ -238,7 +621,7 @@ Use unordered mode when you want simpler tables. Use ordered mode when you want 
 - `max_interaction_depth=1`: pairwise interactions
 - `max_interaction_depth=2`: three-feature paths
 
-For most end-user analysis, `0` or `1` is the best starting point.
+For most end-user analysis, `1` is the best starting point.
 
 ### Using Interactions To Improve A Model
 
@@ -369,14 +752,84 @@ Practical guidance:
 
 The output dataframes include several ranking metrics. No single metric is always best, so in practice you usually want to compare more than one.
 
+For XGBoost users, `treefi` exposes explicit compatibility columns on
+feature-importance output:
+
+- `weight`: split count
+- `total_gain`: summed split gain
+- `total_cover`: summed split cover
+- `gain`: average gain per split
+- `cover`: average cover per split
+
+Backend caveat:
+
+- XGBoost: these compatibility names are direct matches
+- LightGBM: `total_gain` / `gain` are strong matches, while cover-style metrics remain approximate
+- sklearn trees, forests, and HistGradientBoosting: gain/cover-style aliases are useful approximations, not literal XGBoost parity
+- CatBoost: gain-style aliases are structural proxies derived from exported leaf values, and should be treated as synthetic approximations
+
+### Reproducing XGBoost `get_score(...)`
+
+For XGBoost models, treefi's canonical feature-importance names map directly to
+`Booster.get_score(...)`:
+
+- `get_score(importance_type="gain")` -> treefi `gain`
+- `get_score(importance_type="cover")` -> treefi `cover`
+- `get_score(importance_type="weight")` -> treefi `weight`
+- `get_score(importance_type="total_gain")` -> treefi `total_gain`
+- `get_score(importance_type="total_cover")` -> treefi `total_cover`
+
+That makes it easy to reproduce XGBoost's native importance reports while still
+working with a dataframe instead of a dict.
+
+## Backend-Neutral Comparison
+
+Use backend-specific metrics when you want parity with one library:
+
+- for XGBoost, use `gain`, `cover`, `weight`, `total_gain`, and `total_cover`
+
+Use backend-neutral metrics when you want to compare different tree libraries:
+
+- `expected_gain` to balance strength and prevalence
+- `weighted_fscore` to discount rare paths
+- `occurrence_count` and `tree_count` for structural breadth
+- CV outputs like `fold_presence_rate`, `selection_rate_top_k`, and `gain_cv`
+
+This matters because XGBoost's importance semantics are exact for XGBoost, but
+only approximate or synthetic for some other backends.
+
+### Compatibility Names Vs treefi-native Names
+
+`treefi` exposes two metric families:
+
+- compatibility names:
+  `gain`, `cover`, `weight`, `total_gain`, and `total_cover`
+- treefi-native names:
+  `expected_gain`, `weighted_fscore`, `average_weighted_fscore`,
+  `tree_count`, `occurrence_count`, `tree_frequency`, and `path_frequency`
+
+Use compatibility names when you want low-friction parity with XGBoost-style
+reports or with `Booster.get_score(...)`.
+
+Use treefi-native names when you want backend-neutral analysis that balances
+strength, prevalence, and path structure.
+
+The practical rule is:
+
+- `feature_importance(...)` uses compatibility names as the primary surface
+- interaction analysis and CV summaries are where treefi-native metrics add the most value
+
+
+
 | Metric | What it means | Good for | Pros | Cons |
 | --- | --- | --- | --- | --- |
-| `gain` | Split improvement associated with the feature or interaction | First-pass ranking | Intuitive and often surfaces important model logic quickly | Backend semantics differ and it can overweight a few extreme splits |
-| `fscore` | Raw occurrence count | Seeing how often a feature or interaction appears | Simple, stable, easy to explain | Frequency alone does not say whether the split mattered much |
+| `total_gain` | Total split improvement summed across occurrences | First-pass ranking for total ensemble contribution | Aligns with XGBoost `total_gain` and surfaces features used often and effectively | Can overweight features that are used frequently but only moderately well |
+| `gain` | Average split improvement per occurrence | Comparing per-split quality | Matches XGBoost `gain` semantics and helps separate frequent weak splits from stronger ones | A rare but strong split can look better than a broad, consistently useful feature |
+| `weight` | Raw occurrence count | Seeing how often a feature or interaction appears | Matches XGBoost `weight` and is easy to explain | Frequency alone does not say whether the split mattered much |
 | `weighted_fscore` | Path probability, following `xgbfir` semantics | Discounting rare paths and highlighting common structure | More informative than raw count when deep or low-mass paths exist | Depends on cover-like backend statistics and is not perfectly comparable across all libraries |
 | `expected_gain` | `gain * weighted_fscore` | Balancing strength and prevalence | Good for prioritizing interactions that are both strong and common | Inherits the limitations of both `gain` and `weighted_fscore` |
-| `cover` | Node mass: how much training weight reaches a split or path | Seeing whether a pattern is broad or niche | Useful context for gain and for debugging model reach | Exact semantics vary by backend |
-| `average_gain` | `gain / fscore` | Separating repeated moderate effects from rare strong effects | Good secondary ranking metric | Can overrate rare events |
+| `total_cover` | Total node mass reaching the feature across occurrences | Seeing whether a pattern is broad or niche overall | Useful context for total gain and debugging model reach | Exact semantics vary by backend and totals can be large for frequently reused features |
+| `cover` | Average node mass per occurrence | Comparing how broad a typical split is | Matches XGBoost `cover` semantics most closely | Still backend-dependent and approximate on some libraries |
 | `tree_frequency` | How many trees contain the interaction | Breadth across the ensemble | Interpretable and useful next to gain | Structural frequency is not the same as predictive importance |
 | `path_frequency` | How many distinct paths contain the interaction | Structural repetition within trees | Interpretable and useful next to gain | Structural frequency is not the same as predictive importance |
 | `first_position_mean` | Where the feature or interaction tends to start in a path | Understanding whether it acts early or late | Useful for understanding how high up a feature acts | Not a direct importance score |
@@ -388,8 +841,8 @@ The output dataframes include several ranking metrics. No single metric is alway
 A practical approach:
 
 1. Sort by `expected_gain` to find interactions that are both strong and prevalent.
-2. Check `gain` to find rare but powerful splits.
-3. Check `fscore`, `tree_frequency`, and `cover` to see whether the pattern is broad or niche.
+2. Check `total_gain` for total contribution and `gain` for per-split quality.
+3. Check `weight`, `tree_frequency`, and `total_cover` to see whether the pattern is broad or niche.
 4. Check `first_position_mean` and depth metrics to see whether it acts early or late in the trees.
 
 ## Backend Notes

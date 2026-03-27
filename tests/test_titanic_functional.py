@@ -21,7 +21,9 @@ def test_titanic_xgboost_interactions_smoke(titanic_xy) -> None:
 
     assert not frame.empty
     assert frame.iloc[0]["backend"] == "xgboost"
-    assert set(frame["interaction"]).intersection({"sex", "fare", "pclass", "sex|fare", "pclass|sex"})
+    assert set(frame["interaction"]).intersection(
+        {"sex", "fare", "pclass", "sex|fare", "pclass|sex"}
+    )
 
 
 def test_titanic_sklearn_tree_interactions_smoke(titanic_xy) -> None:
@@ -32,7 +34,9 @@ def test_titanic_sklearn_tree_interactions_smoke(titanic_xy) -> None:
 
     assert not frame.empty
     assert frame.iloc[0]["backend"] == "sklearn"
-    assert set(frame["interaction"]).intersection({"sex", "fare", "pclass", "sex|fare", "pclass|sex"})
+    assert set(frame["interaction"]).intersection(
+        {"sex", "fare", "pclass", "sex|fare", "pclass|sex"}
+    )
 
 
 def test_titanic_catboost_interactions_smoke(titanic_xy) -> None:
@@ -40,11 +44,15 @@ def test_titanic_catboost_interactions_smoke(titanic_xy) -> None:
     model = CatBoostRegressor(depth=2, learning_rate=0.5, iterations=2, verbose=False)
     model.fit(X, y)
 
-    frame = treefi.feature_interactions(model, max_interaction_depth=1, sort_by="interaction", ascending=True)
+    frame = treefi.feature_interactions(
+        model, max_interaction_depth=1, sort_by="interaction", ascending=True
+    )
 
     assert not frame.empty
     assert frame.iloc[0]["backend"] == "catboost"
-    assert set(frame["interaction"]).intersection({"sex", "fare", "pclass", "sex|fare", "pclass|sex"})
+    assert set(frame["interaction"]).intersection(
+        {"sex", "fare", "pclass", "sex|fare", "pclass|sex"}
+    )
 
 
 def test_titanic_random_forest_importance_smoke(titanic_xy) -> None:

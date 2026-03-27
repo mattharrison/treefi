@@ -49,10 +49,11 @@ _IMPORTANCE_COLUMNS = [
     "feature",
     "gain",
     "cover",
-    "fscore",
+    "weight",
+    "total_gain",
+    "total_cover",
     "weighted_fscore",
     "average_weighted_fscore",
-    "average_gain",
     "expected_gain",
     "average_tree_index",
     "average_tree_depth",
@@ -136,8 +137,26 @@ def cross_validated_interactions(
     -----
     The aggregated summary is intended to answer "is this interaction stable?"
     rather than "is this interaction merely large in one model?" Columns such
-    as ``fold_presence_rate``, ``selection_rate_top_k``, ``gain_cv``, and
-    ``overfit_suspect_flag`` are specifically aimed at this question.
+    as ``fold_presence_rate``, ``selection_rate_top_k``, ``gain_cv``, and the
+    suspicious-feature diagnostics are specifically aimed at this question.
+
+    The suspicious-feature diagnostics separate a few different failure modes:
+
+    - unstable features or interactions:
+      high variance across folds, usually reflected in ``gain_cv``,
+      ``expected_gain_cv``, ``cv_instability_flag``, and sometimes
+      ``overfit_suspect_flag``
+    - low-density features or interactions:
+      heavy reliance on repeated use with weak per-occurrence contribution,
+      reflected in ``high_total_gain_low_density_flag``,
+      ``high_weight_low_gain_flag``, and ``weak_signal_density_flag``
+    - weak-consensus features or interactions:
+      strong enough to appear in one fit but not repeatedly strong across CV,
+      reflected in ``selection_rate_top_k`` and
+      ``low_consensus_top_k_flag``
+
+    These are heuristics meant to guide inspection rather than prove that a
+    feature is noisy, leaked, or useless.
 
     For temporal or leakage-sensitive problems, pass an explicit splitter via
     ``cv=`` instead of relying on the default sklearn splitters.
@@ -265,6 +284,23 @@ def cross_validated_importance(
     want to know whether a feature is repeatedly important across folds instead
     of only ranking highly in one fitted model.
 
+    The suspicious-feature diagnostics separate a few different failure modes:
+
+    - unstable features:
+      high fold-to-fold variance, captured by ``gain_cv``,
+      ``expected_gain_cv``, ``cv_instability_flag``, and in narrower cases
+      ``overfit_suspect_flag``
+    - low-density features:
+      used often, but weak on a per-split basis, captured by
+      ``high_total_gain_low_density_flag``, ``high_weight_low_gain_flag``,
+      and ``weak_signal_density_flag``
+    - weak-consensus features:
+      strong in one fit but not repeatedly top-ranked across CV, captured by
+      ``selection_rate_top_k`` and ``low_consensus_top_k_flag``
+
+    These diagnostics are intended to reduce false negatives around suspicious
+    high-ranking features, not to replace proper validation or domain review.
+
     Examples
     --------
     >>> from sklearn.datasets import load_breast_cancer
@@ -375,10 +411,10 @@ def feature_importance(
     >>> from sklearn.tree import DecisionTreeRegressor
     >>> model = DecisionTreeRegressor(max_depth=2, random_state=0).fit([[0.0], [1.0], [2.0]], [0.0, 0.0, 1.0])
     >>> result = feature_importance(model)
-    >>> df = result[["feature", "gain", "cover"]]
+    >>> df = result[["feature", "gain", "cover", "weight", "total_gain", "total_cover"]]
     >>> print(df.to_string(index=False))
-    feature     gain  cover
-         f0 0.666667    3.0
+    feature     gain  cover  weight  total_gain  total_cover
+         f0 0.666667    3.0       1    0.666667          3.0
     """
     _validate_top_k(top_k)
     analysis_model = _unwrap_model_for_analysis(model)
@@ -394,9 +430,6 @@ def feature_importance(
         frame = summarize_interactions(
             tree,
             max_interaction_depth=0,
-            sort_by=sort_by,
-            ascending=ascending,
-            top_k=top_k,
         )
         if frame.empty:
             continue
@@ -429,8 +462,9 @@ def feature_importance(
     importance = _aggregate_importance_rows(importance_source)
 
     if sort_by is not None and not importance.empty:
+        resolved_sort_by = _resolve_importance_sort_by(sort_by)
         importance = importance.sort_values(
-            by=[sort_by, "feature"],
+            by=[resolved_sort_by, "feature"],
             ascending=[ascending, True],
             kind="mergesort",
         ).reset_index(drop=True)
@@ -645,6 +679,15 @@ def _validate_top_k(top_k: int | None) -> None:
         raise ValueError("top_k must be >= 0")
 
 
+def _resolve_importance_sort_by(sort_by: str) -> str:
+    legacy_aliases = {
+        "average_gain": "gain",
+        "average_cover": "cover",
+        "fscore": "weight",
+    }
+    return legacy_aliases.get(sort_by, sort_by)
+
+
 def _coerce_tabular(X) -> pd.DataFrame:
     if isinstance(X, pd.DataFrame):
         return X.reset_index(drop=True)
@@ -715,12 +758,16 @@ def _aggregate_cv_importance(*, folds: pd.DataFrame, n_splits: int) -> pd.DataFr
     summary = grouped.agg(
         mean_gain=("gain", "mean"),
         std_gain=("gain", "std"),
+        mean_total_gain=("total_gain", "mean"),
+        std_total_gain=("total_gain", "std"),
         mean_expected_gain=("expected_gain", "mean"),
         std_expected_gain=("expected_gain", "std"),
         mean_cover=("cover", "mean"),
         std_cover=("cover", "std"),
-        mean_rank=("average_gain", "mean"),
-        std_rank=("average_gain", "std"),
+        mean_total_cover=("total_cover", "mean"),
+        std_total_cover=("total_cover", "std"),
+        mean_rank=("gain", "mean"),
+        std_rank=("gain", "std"),
         mean_tree_count=("tree_count", "mean"),
         std_tree_count=("tree_count", "std"),
         mean_occurrence_count=("occurrence_count", "mean"),
@@ -798,6 +845,54 @@ def _add_cv_stability_columns(summary: pd.DataFrame) -> pd.DataFrame:
         & (summary["gain_cv"] > 1.0)
         & (summary["mean_gain"] > summary["mean_gain"].median())
     )
+    count_column = None
+    total_gain_column = "mean_gain"
+    if "mean_occurrence_count" in summary.columns:
+        count_column = "mean_occurrence_count"
+    elif "mean_path_frequency" in summary.columns:
+        count_column = "mean_path_frequency"
+    elif "mean_tree_count" in summary.columns:
+        count_column = "mean_tree_count"
+
+    if "mean_total_gain" in summary.columns:
+        total_gain_column = "mean_total_gain"
+
+    if count_column is None:
+        summary["signal_density"] = summary["mean_expected_gain"]
+        count_series = pd.Series(1.0, index=summary.index, dtype="float64")
+    else:
+        count_series = summary[count_column].clip(lower=1.0)
+        summary["signal_density"] = summary["mean_expected_gain"] / count_series
+
+    median_total_gain = summary[total_gain_column].median()
+    median_gain = summary["mean_gain"].median()
+    median_weight = count_series.median()
+    median_signal_density = summary["signal_density"].median()
+    summary["high_total_gain_low_density_flag"] = (
+        (summary[total_gain_column] > median_total_gain)
+        & (summary["mean_gain"] < median_gain)
+        & (count_series >= median_weight)
+    )
+    summary["high_weight_low_gain_flag"] = (
+        (count_series > median_weight) & (summary["mean_gain"] < median_gain)
+    )
+    summary["low_consensus_top_k_flag"] = (
+        (summary["selection_rate_top_k"] < 0.5) | (~summary["consensus_top_k"])
+    ) & (summary["fold_presence_rate"] < 0.8)
+    summary["weak_signal_density_flag"] = (
+        (summary[total_gain_column] > median_total_gain) & (summary["signal_density"] < median_signal_density)
+    )
+    summary["cv_instability_flag"] = (
+        (summary["gain_cv"] > 0.75) & (summary["fold_presence_rate"] < 0.8)
+    )
+    summary["suspicious_feature_score"] = (
+        summary["high_total_gain_low_density_flag"].astype(float)
+        + summary["high_weight_low_gain_flag"].astype(float)
+        + summary["low_consensus_top_k_flag"].astype(float)
+        + summary["weak_signal_density_flag"].astype(float)
+        + summary["cv_instability_flag"].astype(float)
+        + summary["overfit_suspect_flag"].astype(float)
+    )
     return summary
 
 
@@ -874,7 +969,6 @@ def _aggregate_importance_rows(frame: pd.DataFrame) -> pd.DataFrame:
     working = frame.copy()
     working["_tree_index_sum"] = working["average_tree_index"] * working["fscore"]
     working["_tree_depth_sum"] = working["average_tree_depth"] * working["fscore"]
-    grouped = frame.groupby("feature", as_index=False, sort=False)
     aggregation = {
         column: (
             "sum"
@@ -888,7 +982,14 @@ def _aggregate_importance_rows(frame: pd.DataFrame) -> pd.DataFrame:
     }
     aggregated = working.groupby("feature", as_index=False, sort=False).agg(aggregation)
     aggregated["average_weighted_fscore"] = aggregated["weighted_fscore"] / aggregated["fscore"]
-    aggregated["average_gain"] = aggregated["gain"] / aggregated["fscore"]
     aggregated["average_tree_index"] = aggregated["_tree_index_sum"] / aggregated["fscore"]
     aggregated["average_tree_depth"] = aggregated["_tree_depth_sum"] / aggregated["fscore"]
-    return aggregated.drop(columns=["_tree_index_sum", "_tree_depth_sum"])
+    aggregated["weight"] = aggregated["fscore"]
+    aggregated["total_gain"] = aggregated["gain"]
+    aggregated["total_cover"] = aggregated["cover"]
+    aggregated["gain"] = aggregated["total_gain"] / aggregated["weight"]
+    aggregated["cover"] = aggregated["total_cover"] / aggregated["weight"]
+    aggregated = aggregated.drop(
+        columns=["_tree_index_sum", "_tree_depth_sum", "fscore", "average_gain"]
+    )
+    return aggregated

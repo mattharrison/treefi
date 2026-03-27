@@ -19,6 +19,12 @@ Common commands:
 - `uv run pytest`
 - `uv run pytest tests/test_adapters.py -q`
 - `uv run pytest tests/test_sklearn_integration.py -q`
+- `uv tool run prek run --all-files`
+- `uv tool run prek install`
+
+The `prek` hooks are intentionally scoped to Python files for Ruff. The sample
+notebook is left out of automatic formatting so notebook JSON does not churn on
+normal hook runs.
 
 ## Scope Rules
 
